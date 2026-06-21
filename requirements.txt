@@ -1,0 +1,7 @@
+# No external dependencies required.
+# All libraries used (zipfile, json, os, sys, uuid, tempfile)
+# are part of the Python standard library.
+#
+# Requirements:
+#   - Python 3.8 or higher
+#   - Regular PBI Desktop (same monthly version as your PBRS Desktop)
