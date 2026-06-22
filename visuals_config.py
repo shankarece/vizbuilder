@@ -3,155 +3,149 @@ visuals_config.py
 -----------------
 THIS IS THE ONLY FILE YOU NEED TO EDIT to customise your report.
 
-Define:
-  - TABLE      : the data model table name (must match what PBI Desktop loaded)
-  - PAGE_NAME  : display name for the first page
-  - build_visuals() : add/remove/edit visuals here
+Uses pbi-cli's Table[Column] syntax for field binding. Example:
 
-Canvas size is 1280 x 720 pixels by default.
+    add_visual("bar", bindings={
+        "category": "Orders[Region]",
+        "value":    "Orders[Sales]",
+    })
 
-Supported visual_type values:
-    clusteredColumnChart   Vertical bar chart
-    clusteredBarChart      Horizontal bar chart
-    lineChart              Line chart
-    areaChart              Area chart
-    donutChart             Donut chart
-    pieChart               Pie chart
-    card                   Single-value card
-    multiRowCard           Multi-row card
-    tableEx                Table
-    matrix                 Matrix
-    slicerVisual           Slicer
+That's it — the engine handles the legacy PBIX query/projection/selection
+boilerplate automatically.
 
-Role names by visual type:
-    clusteredColumnChart / clusteredBarChart / lineChart / areaChart:
-        Category (axis)   Y (values)   Series (legend)
+Canvas size: 1280 x 720 pixels.
 
-    donutChart / pieChart:
-        Category          Y
+Supported visual types (use either the canonical name or any alias):
+    bar / barChart                    Horizontal bar chart
+    line / lineChart                  Line chart
+    column / columnChart              Vertical bar chart
+    clustered_column                  Clustered column chart
+    clustered_bar                     Clustered bar chart
+    stacked_bar                       Stacked bar chart
+    area / areaChart                  Area chart
+    donut / pie / donutChart          Donut chart
+    combo / lineStackedColumnComboChart   Combo (column + line)
+    waterfall / waterfallChart        Waterfall chart
+    funnel / funnelChart              Funnel chart
+    scatter / scatterChart            Scatter chart
+    treemap                           Treemap
+    ribbon / ribbonChart              Ribbon chart
+    card                              Single-value card
+    new_card / cardNew                New card visual
+    modern_card / cardVisual          Modern card visual
+    multi_row_card / multiRowCard     Multi-row card
+    table / tableEx                   Table
+    matrix / pivotTable               Matrix
+    slicer                            Slicer
+    kpi                               KPI
+    gauge                             Gauge
+    map / azureMap                    Azure Map
 
-    card / multiRowCard:
-        Values
-
-    tableEx / matrix:
-        Values            Rows (matrix only)   Columns (matrix only)
-
-data_type values for sel():
-    1 = Text / Category
-    2 = Decimal / Number
-    4 = DateTime
-
-role_kind values for sel():
-    1 = Grouping  (axis, legend, category fields)
-    2 = Measure   (value / aggregation fields)
+Binding roles (use friendly names — they map automatically):
+    Most charts:    category, value, legend
+    Combo chart:    category, column, line, legend
+    Scatter chart:  x, y, detail, size, legend
+    Card / Table:   value / field
+    Matrix:         row, value, column
+    KPI:            indicator / value, goal, trend_line
+    Gauge:          value, max / target
+    Treemap:        category, value
+    Waterfall:      category, value, breakdown
 """
 
-from layout_builder import (
-    make_visual, col_select, agg_select, order_by_agg, sel
-)
+from layout_builder import add_visual
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-TABLE     = "Orders"       # Must match the table name in your data model
 PAGE_NAME = "Sales Overview"
 
 
 # ── Visuals ───────────────────────────────────────────────────────────────────
 
-def build_visuals(table: str = TABLE) -> list:
-    """
-    Define all visuals for Page 1.
-    Each call to make_visual() adds one chart/card to the page.
+def build_visuals() -> list:
+    """Define all visuals for the page. Returns a list of visualContainers."""
 
-    Canvas is 1280 x 720 px.
-    Visual positions: x (left), y (top), w (width), h (height) — all in pixels.
-    Leave ~40px at top for the page title area.
-    """
     visuals = []
 
-    # ── Visual 1: Clustered Column Chart — Sales by Category ─────────────────
-    # Position: left half, top row  (x=20, y=60, w=600, h=290)
-    visuals.append(make_visual(
-        vid=1, tab_order=0,
+    # ── 1. Clustered Column Chart — Sales by Category ────────────────────────
+    visuals.append(add_visual(
+        "clustered_column",
+        bindings={
+            "category": "Orders[Category]",
+            "value":    "Orders[Sales]",
+        },
         x=20, y=60, w=600, h=290,
-        visual_type="clusteredColumnChart",
-        table=table,
-        projections={
-            "Category": [{"queryRef": f"{table}.Category", "active": True}],
-            "Y":        [{"queryRef": f"Sum({table}.Sales)"}]
-        },
-        selects=[
-            col_select("Category", f"{table}.Category"),
-            agg_select("Sales",    f"Sum({table}.Sales)")
-        ],
-        selections=[
-            sel(f"{table}.Category",   "Category",     data_type=1, role_kind=1, roles=["Category"]),
-            sel(f"Sum({table}.Sales)", "Sum of Sales", data_type=2, role_kind=2, roles=["Y"])
-        ],
-        order_by=order_by_agg("Sales", direction=2)
+        vid=1, tab_order=0,
     ))
 
-    # ── Visual 2: Donut Chart — Sales by Segment ─────────────────────────────
-    # Position: right half, top row  (x=660, y=60, w=300, h=290)
-    visuals.append(make_visual(
-        vid=2, tab_order=1,
+    # ── 2. Donut Chart — Sales by Segment ────────────────────────────────────
+    visuals.append(add_visual(
+        "donut",
+        bindings={
+            "category": "Orders[Segment]",
+            "value":    "Orders[Sales]",
+        },
         x=660, y=60, w=300, h=290,
-        visual_type="donutChart",
-        table=table,
-        projections={
-            "Category": [{"queryRef": f"{table}.Segment", "active": True}],
-            "Y":        [{"queryRef": f"Sum({table}.Sales)"}]
-        },
-        selects=[
-            col_select("Segment", f"{table}.Segment"),
-            agg_select("Sales",   f"Sum({table}.Sales)")
-        ],
-        selections=[
-            sel(f"{table}.Segment",    "Segment",      data_type=1, role_kind=1, roles=["Category"]),
-            sel(f"Sum({table}.Sales)", "Sum of Sales", data_type=2, role_kind=2, roles=["Y"])
-        ],
-        order_by=order_by_agg("Sales", direction=2)
+        vid=2, tab_order=1,
     ))
 
-    # ── Visual 3: Card — Total Sales ─────────────────────────────────────────
-    # Position: right half, bottom row  (x=660, y=390, w=300, h=120)
-    visuals.append(make_visual(
-        vid=3, tab_order=2,
+    # ── 3. Card — Total Sales ────────────────────────────────────────────────
+    visuals.append(add_visual(
+        "card",
+        bindings={
+            "value": "Orders[Sales]",
+        },
         x=660, y=390, w=300, h=120,
-        visual_type="card",
-        table=table,
-        projections={
-            "Values": [{"queryRef": f"Sum({table}.Sales)", "active": True}]
-        },
-        selects=[
-            agg_select("Sales", f"Sum({table}.Sales)")
-        ],
-        selections=[
-            sel(f"Sum({table}.Sales)", "Sum of Sales", data_type=2, role_kind=2, roles=["Values"])
-        ]
+        vid=3, tab_order=2,
     ))
 
-    # ── Add more visuals below this line ─────────────────────────────────────
-    # Example — Line Chart: Sales over time
-    #
-    # visuals.append(make_visual(
-    #     vid=4, tab_order=3,
-    #     x=20, y=390, w=600, h=290,
-    #     visual_type="lineChart",
-    #     table=table,
-    #     projections={
-    #         "Category": [{"queryRef": f"{table}.Order Date", "active": True}],
-    #         "Y":        [{"queryRef": f"Sum({table}.Sales)"}]
+    # ── Add more visuals below ───────────────────────────────────────────────
+
+    # Line Chart — Sales over time
+    # visuals.append(add_visual(
+    #     "line",
+    #     bindings={
+    #         "category": "Orders[Order Date]",
+    #         "value":    "Orders[Sales]",
     #     },
-    #     selects=[
-    #         col_select("Order Date", f"{table}.Order Date"),
-    #         agg_select("Sales",      f"Sum({table}.Sales)")
-    #     ],
-    #     selections=[
-    #         sel(f"{table}.Order Date", "Order Date",   data_type=4, role_kind=1, roles=["Category"]),
-    #         sel(f"Sum({table}.Sales)", "Sum of Sales", data_type=2, role_kind=2, roles=["Y"])
-    #     ],
-    #     order_by=order_by_agg("Sales", direction=1)
+    #     x=20, y=390, w=600, h=290,
+    #     vid=4, tab_order=3,
+    # ))
+
+    # Table — detailed data
+    # visuals.append(add_visual(
+    #     "table",
+    #     bindings={
+    #         "value": "Orders[Customer Name]",
+    #         # Add more value bindings by using PBIR role names:
+    #         # "Values": "Orders[Sales]",  # second column
+    #     },
+    #     x=20, y=390, w=600, h=290,
+    #     vid=5, tab_order=4,
+    # ))
+
+    # Combo Chart — columns + line
+    # visuals.append(add_visual(
+    #     "combo",
+    #     bindings={
+    #         "category": "Orders[Category]",
+    #         "column":   "Orders[Sales]",
+    #         "line":     "Orders[Quantity]",
+    #     },
+    #     x=20, y=390, w=600, h=290,
+    #     vid=6, tab_order=5,
+    # ))
+
+    # Scatter Chart
+    # visuals.append(add_visual(
+    #     "scatter",
+    #     bindings={
+    #         "x":      "Orders[Sales]",
+    #         "y":      "Orders[Quantity]",
+    #         "detail": "Orders[Category]",
+    #     },
+    #     x=20, y=390, w=600, h=290,
+    #     vid=7, tab_order=6,
     # ))
 
     return visuals
