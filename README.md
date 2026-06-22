@@ -59,6 +59,8 @@ python build.py MyReport.pbix MyReport-WithVisuals.pbix
 | `layout_builder.py` | Layout read/write engine and query builders | No |
 | `visual_types.py` | 32 visual types, data roles, aliases (ported from pbi-cli) | No |
 | `pbix_patch.py` | PBIX zip manipulation | No |
+| `install_skill.py` | Install Claude Code / Windsurf skill | Run once |
+| `skill/SKILL.md` | Claude Code skill definition | No |
 | `requirements.txt` | Dependency list (empty — stdlib only) | No |
 
 ---
@@ -126,25 +128,25 @@ Open `MyReport-WithVisuals.pbix` in **regular PBI Desktop** → verify visuals �
 Edit **`visuals_config.py`** only. Uses pbi-cli's `Table[Column]` binding syntax:
 
 ```python
-# Simple — just specify type and bindings
+# Bar chart with title
 add_visual("bar", bindings={
     "category": "Orders[Region]",
     "value":    "Orders[Sales]",
-})
+}, title="Sales by Region")
 
-# With position and size
+# Clustered column with position, size, and legend
 add_visual("clustered_column", bindings={
     "category": "Orders[Category]",
     "value":    "Orders[Sales]",
     "legend":   "Orders[Segment]",
-}, x=20, y=60, w=600, h=290, vid=1, tab_order=0)
+}, x=20, y=60, w=600, h=290, vid=1, title="Sales by Category & Segment")
 
 # Combo chart (column + line)
 add_visual("combo", bindings={
     "category": "Sales[Month]",
     "column":   "Sales[Revenue]",
     "line":     "Sales[Profit]",
-})
+}, title="Revenue vs Profit")
 
 # Scatter chart
 add_visual("scatter", bindings={
@@ -152,15 +154,35 @@ add_visual("scatter", bindings={
     "y":      "Products[Quantity]",
     "detail": "Products[Name]",
     "size":   "Products[Revenue]",
-})
+}, title="Price vs Quantity")
 
 # KPI
 add_visual("kpi", bindings={
     "indicator": "Sales[Actual]",
     "goal":      "Sales[Target]",
     "trend":     "Sales[Date]",
-})
+}, title="Sales Performance")
+
+# Card with data labels
+add_visual("card", bindings={
+    "value": "Sales[Revenue]",
+}, title="Total Revenue")
+
+# Line chart with data labels enabled
+add_visual("line", bindings={
+    "category": "Sales[Month]",
+    "value":    "Sales[Revenue]",
+}, title="Monthly Trend", show_labels=True)
 ```
+
+### Formatting (auto-applied)
+
+| Feature | Charts | Cards | Donut |
+|---|---|---|---|
+| **Title** | from `title=` or auto-generated | from `title=` or auto-generated | from `title=` or auto-generated |
+| **Axis titles** | enabled | — | — |
+| **Legend** | shown (right) | — | — |
+| **Data labels** | via `show_labels=True` | always on | category + % |
 
 ### Supported visual types (32 types, ported from pbi-cli)
 
@@ -208,6 +230,32 @@ add_visual("kpi", bindings={
 | KPI | `indicator` / `value`, `goal`, `trend` / `trend_line` |
 | Gauge | `value`, `max` / `target` |
 | Map | `category`, `size` |
+
+---
+
+## Windsurf / Claude Code Integration
+
+vizbuilder includes a Claude Code skill so you can create visuals using
+natural language prompts in Windsurf or Claude Code.
+
+### Install the skill
+
+```bash
+python install_skill.py
+```
+
+This copies the skill to `~/.claude/skills/vizbuilder/` and updates `CLAUDE.md`.
+Restart Windsurf after installing.
+
+### Using prompts
+
+After installing, just describe what you want:
+
+- *"Add a bar chart showing Sales by Region"*
+- *"Create a dashboard with a column chart, donut chart, and KPI card"*
+- *"Add a combo chart with Revenue columns and Profit line"*
+
+The AI will edit `visuals_config.py` and run `build.py` for you.
 
 ---
 

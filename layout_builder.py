@@ -117,36 +117,148 @@ def _build_selection(table: str, column: str, is_measure: bool, role: str):
     }
 
 
+# ── Formatting helpers ───────────────────────────────────────────────────────
+
+_CHART_TYPES_WITH_AXES = frozenset({
+    "barChart", "lineChart", "columnChart", "clusteredColumnChart",
+    "clusteredBarChart", "stackedBarChart", "areaChart", "ribbonChart",
+    "waterfallChart", "lineStackedColumnComboChart",
+})
+
+_CHART_TYPES_WITH_LEGEND = frozenset({
+    "barChart", "lineChart", "columnChart", "clusteredColumnChart",
+    "clusteredBarChart", "stackedBarChart", "areaChart", "ribbonChart",
+    "donutChart", "scatterChart", "lineStackedColumnComboChart",
+})
+
+def _lit(value) -> dict:
+    """Build a Power BI literal expression."""
+    if isinstance(value, bool):
+        v = "true" if value else "false"
+    elif isinstance(value, (int, float)):
+        v = f"{value}D"
+    else:
+        v = f"'{value}'"
+    return {"expr": {"Literal": {"Value": v}}}
+
+
+def _auto_title(vtype: str, resolved: list) -> str:
+    """Generate a descriptive title from visual type and bound fields."""
+    measures = [col for (role, tbl, col, is_m) in resolved if is_m]
+    categories = [col for (role, tbl, col, is_m) in resolved if not is_m]
+
+    type_labels = {
+        "barChart": "Bar Chart", "lineChart": "Line Chart",
+        "columnChart": "Column Chart", "clusteredColumnChart": "Column Chart",
+        "clusteredBarChart": "Bar Chart", "stackedBarChart": "Stacked Bar",
+        "areaChart": "Area Chart", "ribbonChart": "Ribbon Chart",
+        "donutChart": "Donut Chart", "waterfallChart": "Waterfall",
+        "funnelChart": "Funnel", "scatterChart": "Scatter Plot",
+        "lineStackedColumnComboChart": "Combo Chart", "treemap": "Treemap",
+        "card": "", "cardNew": "", "cardVisual": "",
+        "multiRowCard": "Details", "tableEx": "Table", "pivotTable": "Matrix",
+        "slicer": "Slicer", "kpi": "KPI", "gauge": "Gauge",
+        "azureMap": "Map",
+    }
+    label = type_labels.get(vtype, vtype)
+
+    if measures and categories:
+        return f"{', '.join(measures)} by {', '.join(categories)}"
+    elif measures:
+        if label:
+            return f"{', '.join(measures)} — {label}"
+        return f"Total {', '.join(measures)}"
+    elif categories:
+        return f"{label} — {', '.join(categories)}" if label else ', '.join(categories)
+    return label or vtype
+
+
+def _build_formatting_objects(vtype: str, show_labels: bool) -> dict:
+    """Build singleVisual.objects with chart formatting."""
+    objects = {}
+
+    if vtype in _CHART_TYPES_WITH_AXES:
+        objects["categoryAxis"] = [{"properties": {
+            "show": _lit(True),
+            "showAxisTitle": _lit(True),
+        }}]
+        objects["valueAxis"] = [{"properties": {
+            "show": _lit(True),
+            "showAxisTitle": _lit(True),
+        }}]
+        objects["labels"] = [{"properties": {
+            "show": _lit(show_labels),
+        }}]
+
+    if vtype in _CHART_TYPES_WITH_LEGEND:
+        objects["legend"] = [{"properties": {
+            "show": _lit(True),
+            "position": _lit("Right"),
+        }}]
+
+    if vtype in ("donutChart",):
+        objects["labels"] = [{"properties": {
+            "show": _lit(True),
+            "labelStyle": _lit("Both"),
+        }}]
+
+    if vtype in ("card", "cardNew", "cardVisual"):
+        objects["labels"] = [{"properties": {
+            "show": _lit(True),
+        }}]
+
+    if vtype in ("gauge",):
+        objects["labels"] = [{"properties": {
+            "show": _lit(True),
+        }}]
+
+    return objects
+
+
+def _build_vc_objects(title: str) -> dict:
+    """Build singleVisual.vcObjects — the container chrome (title bar)."""
+    if not title:
+        return {}
+    return {
+        "title": [{
+            "properties": {
+                "show": _lit(True),
+                "text": _lit(title),
+                "fontSize": _lit(12),
+            }
+        }],
+    }
+
+
 # ── High-level visual builder ────────────────────────────────────────────────
 
 def add_visual(visual_type: str, bindings: dict,
                x: int = None, y: int = None,
                w: int = None, h: int = None,
-               vid: int = 0, tab_order: int = 0) -> dict:
+               vid: int = 0, tab_order: int = 0,
+               title: str = None,
+               show_labels: bool = False) -> dict:
     """
-    Build a complete legacy PBIX visualContainer.
-
-    This is the main function you call from visuals_config.py.
-    Uses pbi-cli's Table[Column] syntax for field binding.
+    Build a complete legacy PBIX visualContainer with formatting.
 
     Parameters
     ----------
     visual_type : str
-        Chart type — canonical name or alias (e.g. "bar", "line", "donut",
-        "clustered_column", "combo", "table", "matrix", "card", etc.)
+        Chart type — canonical name or alias.
     bindings : dict
-        Maps role names to field references.
-        Use friendly role names (category, value, legend) or PBIR names (Category, Y, Legend).
-        Field references use Table[Column] format.
-        Example: {"category": "Orders[Category]", "value": "Orders[Sales]"}
+        Maps role names to field references using Table[Column] syntax.
     x, y : int, optional
-        Position in pixels from top-left. Defaults to (50, 50).
+        Position in pixels from top-left.
     w, h : int, optional
-        Dimensions in pixels. Defaults from DEFAULT_SIZES.
+        Dimensions in pixels.
     vid : int
         Unique visual id on the page.
     tab_order : int
         Tab/z-order index.
+    title : str, optional
+        Visual title text. Auto-generated from bindings if not provided.
+    show_labels : bool
+        Show data labels on chart. Default False.
 
     Returns
     -------
@@ -220,6 +332,14 @@ def add_visual(visual_type: str, bindings: dict,
     if order_by:
         query["OrderBy"] = order_by
 
+    # Auto-generate title from bindings if not provided
+    if title is None:
+        title = _auto_title(vtype, resolved)
+
+    # Build formatting objects
+    objects = _build_formatting_objects(vtype, show_labels)
+    vc_objects = _build_vc_objects(title)
+
     # Build config
     guid = str(uuid.uuid4())
     pos  = {"x": x, "y": y, "z": 0, "width": w, "height": h, "tabOrder": tab_order}
@@ -232,7 +352,8 @@ def add_visual(visual_type: str, bindings: dict,
             "projections":    projections,
             "prototypeQuery": query,
             "drillFilterOtherVisuals": True,
-            "objects":        {}
+            "objects":        objects,
+            "vcObjects":      vc_objects,
         }
     }
 

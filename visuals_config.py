@@ -76,6 +76,7 @@ def build_visuals() -> list:
         },
         x=20, y=60, w=600, h=290,
         vid=1, tab_order=0,
+        title="Sales by Category",
     ))
 
     # ── 2. Donut Chart — Sales by Segment ────────────────────────────────────
@@ -87,6 +88,7 @@ def build_visuals() -> list:
         },
         x=660, y=60, w=300, h=290,
         vid=2, tab_order=1,
+        title="Sales by Segment",
     ))
 
     # ── 3. Card — Total Sales ────────────────────────────────────────────────
@@ -97,6 +99,7 @@ def build_visuals() -> list:
         },
         x=660, y=390, w=300, h=120,
         vid=3, tab_order=2,
+        title="Total Sales",
     ))
 
     # ── Add more visuals below ───────────────────────────────────────────────
