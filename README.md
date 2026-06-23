@@ -40,13 +40,26 @@ change — even 1 byte — causes `MashupValidationError` on open.
 
 ## Installation
 
-No packages to install. Just clone and run.
+No packages to install. Just clone and run. **No PowerShell needed — works with CMD.**
 
-```bash
-git clone https://github.com/<your-org>/pbix-visual-builder.git
-cd pbix-visual-builder
+```cmd
+git clone https://github.com/shankarece/vizbuilder.git
+cd vizbuilder
+
+REM Build and auto-open in Power BI Desktop
+build.bat MyReport.pbix MyReport-WithVisuals.pbix --open
+
+REM Or without auto-open
 python build.py MyReport.pbix MyReport-WithVisuals.pbix
 ```
+
+### Install Windsurf / Claude Code skill (optional)
+
+```cmd
+python install_skill.py
+```
+
+Then use natural language prompts in Windsurf to create visuals.
 
 ---
 
@@ -56,6 +69,7 @@ python build.py MyReport.pbix MyReport-WithVisuals.pbix
 |---|---|---|
 | `visuals_config.py` | Define your visuals and table name | **YES — edit this** |
 | `build.py` | End-to-end entry point | No |
+| `build.bat` | CMD launcher (no PowerShell needed) | No |
 | `layout_builder.py` | Layout read/write engine and query builders | No |
 | `visual_types.py` | 32 visual types, data roles, aliases (ported from pbi-cli) | No |
 | `pbix_patch.py` | PBIX zip manipulation | No |
@@ -77,15 +91,24 @@ This ensures the data model is populated before we add visuals.
 Edit `visuals_config.py`:
 
 ```python
-TABLE     = "Orders"          # must match table name in your data model
-PAGE_NAME = "Sales Overview"  # page display name
+PAGE_NAME       = "Sales Overview"     # page tab name
+DASHBOARD_TITLE = "Sales Dashboard"    # large title at top of page
 ```
 
 Then define your visuals in `build_visuals()`.
 
+For multiple pages/tabs, define `build_pages()` instead — see [Multi-Page](#multi-page-dashboards) below.
+
 ### Step 3 — Build
 
-```bash
+```cmd
+build.bat MyReport.pbix MyReport-WithVisuals.pbix --open
+```
+
+The `--open` flag auto-launches the output in Power BI Desktop.
+Without `--open`:
+
+```cmd
 python build.py MyReport.pbix MyReport-WithVisuals.pbix
 ```
 
@@ -230,6 +253,48 @@ add_visual("line", bindings={
 | KPI | `indicator` / `value`, `goal`, `trend` / `trend_line` |
 | Gauge | `value`, `max` / `target` |
 | Map | `category`, `size` |
+
+---
+
+## Multi-Page Dashboards
+
+To create multiple tabs/pages, define `build_pages()` in `visuals_config.py`:
+
+```python
+from layout_builder import add_visual, add_title
+
+def build_pages() -> list:
+    return [
+        {
+            "name": "Sales Overview",
+            "title": "Sales Dashboard",    # page title banner
+            "visuals": [
+                add_visual("clustered_column", bindings={
+                    "category": "Orders[Category]",
+                    "value":    "Orders[Sales]",
+                }, x=20, y=60, w=600, h=290, vid=1, title="Sales by Category"),
+
+                add_visual("card", bindings={
+                    "value": "Orders[Sales]",
+                }, x=660, y=60, w=300, h=120, vid=2, title="Total Sales"),
+            ],
+        },
+        {
+            "name": "Regional Analysis",
+            "title": "Regional Performance",
+            "visuals": [
+                add_visual("bar", bindings={
+                    "category": "Orders[Region]",
+                    "value":    "Orders[Sales]",
+                }, x=20, y=60, w=600, h=290, vid=1, title="Sales by Region"),
+            ],
+        },
+    ]
+```
+
+When `build_pages()` exists, it takes priority over `build_visuals()`.
+Each page gets its own tab in Power BI, its own title banner, and
+independent `vid` numbering.
 
 ---
 

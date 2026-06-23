@@ -5,122 +5,147 @@ description: >
   Invoke this skill whenever the user mentions "add a chart to PBIX",
   "PBRS visual", "bar chart", "line chart", "card", "KPI", "gauge", "scatter",
   "table visual", "matrix", "slicer", "combo chart", "create dashboard",
-  "vizbuilder", "pbix visual", or wants to add visuals to a PBRS report.
+  "vizbuilder", "pbix visual", "banking dashboard", "financial dashboard",
+  "add page", "add tab", "new page", "dashboard title",
+  or wants to add visuals to a PBRS report.
 ---
 
 # VizBuilder — PBRS Visual Builder Skill
 
 Add visuals to Power BI Report Server `.pbix` files programmatically.
-Works offline — no Desktop connection needed, no PBIR/PBIP format required.
-
-## How It Works
-
-1. Edit `visuals_config.py` to define visuals
-2. Run `python build.py input.pbix output.pbix`
-3. Open output in regular Desktop → File → Save → deploy to PBRS
+Works offline — no Desktop connection, no PBIR/PBIP format required.
+No PowerShell needed — works with CMD (command prompt).
 
 ## Project Location
 
-The vizbuilder scripts are in the repo root (or cloned from
+Scripts are in the repo root (cloned from
 `https://github.com/shankarece/vizbuilder`). Key files:
 
-- `visuals_config.py` — **the only file to edit** (defines visuals)
-- `build.py` — entry point
+- `visuals_config.py` — **the only file to edit** (defines visuals + pages)
+- `build.py` — entry point (or `build.bat` for CMD)
 - `layout_builder.py` — engine (do not edit)
 - `visual_types.py` — 32 visual type definitions (do not edit)
 - `pbix_patch.py` — PBIX zip manipulation (do not edit)
 
-## Adding Visuals
+## Running (CMD — no PowerShell needed)
 
-Edit `visuals_config.py`. Use the `add_visual()` function with
-`Table[Column]` binding syntax:
+```cmd
+REM Build and auto-open in Desktop
+build.bat input.pbix output.pbix --open
+
+REM Build only (open manually)
+python build.py input.pbix output.pbix
+```
+
+The `--open` flag automatically launches the output in Power BI Desktop.
+
+## IMPORTANT RULES FOR EDITING visuals_config.py
+
+1. **NEVER create a new file** — always edit the existing `visuals_config.py`
+2. **When adding visuals to an existing page**, append to the existing
+   `build_visuals()` or the appropriate page in `build_pages()` — do NOT
+   replace existing visuals
+3. **When asked to "add a tab" or "add a page"**, switch from single-page
+   (`build_visuals`) to multi-page (`build_pages`) — see Multi-Page below
+4. **Always set `title=`** on every visual
+5. **Always set `DASHBOARD_TITLE`** for single-page mode
+6. **vid must be unique** per page — check existing vids before adding
+
+## Single-Page Dashboard
 
 ```python
-from layout_builder import add_visual
+from layout_builder import add_visual, add_title
 
-PAGE_NAME = "Sales Overview"
+PAGE_NAME       = "Sales Overview"
+DASHBOARD_TITLE = "Sales Dashboard"   # appears as large title at top
 
 def build_visuals() -> list:
     visuals = []
 
-    # Bar chart with title
-    visuals.append(add_visual("bar", bindings={
-        "category": "Sales[Region]",
-        "value":    "Sales[Revenue]",
-    }, title="Revenue by Region", x=20, y=60, w=600, h=290, vid=1))
+    visuals.append(add_visual("clustered_column", bindings={
+        "category": "Orders[Category]",
+        "value":    "Orders[Sales]",
+    }, x=20, y=60, w=600, h=290, vid=1, title="Sales by Category"))
 
-    # Donut chart
-    visuals.append(add_visual("donut", bindings={
-        "category": "Sales[Segment]",
-        "value":    "Sales[Revenue]",
-    }, title="Revenue by Segment", x=660, y=60, w=300, h=290, vid=2))
-
-    # Card — total value
     visuals.append(add_visual("card", bindings={
-        "value": "Sales[Revenue]",
-    }, title="Total Revenue", x=660, y=390, w=300, h=120, vid=3))
-
-    # Line chart with data labels
-    visuals.append(add_visual("line", bindings={
-        "category": "Sales[Month]",
-        "value":    "Sales[Revenue]",
-    }, title="Monthly Trend", show_labels=True, vid=4))
-
-    # Combo chart (columns + line)
-    visuals.append(add_visual("combo", bindings={
-        "category": "Sales[Month]",
-        "column":   "Sales[Revenue]",
-        "line":     "Sales[Profit]",
-    }, title="Revenue vs Profit", vid=5))
-
-    # Scatter
-    visuals.append(add_visual("scatter", bindings={
-        "x":      "Products[Price]",
-        "y":      "Products[Quantity]",
-        "detail": "Products[Name]",
-    }, title="Price vs Quantity", vid=6))
-
-    # KPI
-    visuals.append(add_visual("kpi", bindings={
-        "indicator": "Sales[Actual]",
-        "goal":      "Sales[Target]",
-        "trend":     "Sales[Date]",
-    }, title="Sales KPI", vid=7))
-
-    # Table
-    visuals.append(add_visual("table", bindings={
-        "value": "Orders[Customer Name]",
-    }, title="Customer List", vid=8))
-
-    # Matrix
-    visuals.append(add_visual("matrix", bindings={
-        "row":    "Products[Category]",
-        "value":  "Sales[Revenue]",
-        "column": "Sales[Year]",
-    }, title="Revenue Matrix", vid=9))
-
-    # Slicer
-    visuals.append(add_visual("slicer", bindings={
-        "value": "Orders[Region]",
-    }, vid=10))
+        "value": "Orders[Sales]",
+    }, x=660, y=60, w=300, h=120, vid=2, title="Total Sales"))
 
     return visuals
 ```
+
+## Multi-Page Dashboard
+
+When the user wants multiple pages/tabs, define `build_pages()` instead
+of `build_visuals()`. This takes priority when both exist.
+
+```python
+from layout_builder import add_visual, add_title
+
+def build_pages() -> list:
+    return [
+        {
+            "name": "Sales Overview",       # tab/page name
+            "title": "Sales Dashboard",     # large title at top of page
+            "visuals": [
+                add_visual("clustered_column", bindings={
+                    "category": "Orders[Category]",
+                    "value":    "Orders[Sales]",
+                }, x=20, y=60, w=600, h=290, vid=1, title="Sales by Category"),
+
+                add_visual("card", bindings={
+                    "value": "Orders[Sales]",
+                }, x=660, y=60, w=300, h=120, vid=2, title="Total Sales"),
+            ],
+        },
+        {
+            "name": "Regional Analysis",
+            "title": "Regional Performance",
+            "visuals": [
+                add_visual("bar", bindings={
+                    "category": "Orders[Region]",
+                    "value":    "Orders[Sales]",
+                }, x=20, y=60, w=600, h=290, vid=1, title="Sales by Region"),
+
+                add_visual("table", bindings={
+                    "value": "Orders[Customer Name]",
+                }, x=20, y=390, w=940, h=280, vid=2, title="Customer Details"),
+            ],
+        },
+    ]
+```
+
+### Converting single-page to multi-page
+
+When the user says "add a page" or "add a tab", convert like this:
+1. Move existing visuals from `build_visuals()` into the first page dict
+2. Add the new page as a second dict in the list
+3. Remove `build_visuals()` function (or keep it — `build_pages` takes priority)
+4. Each page has its own `title` and independent `vid` numbering
 
 ## add_visual() Parameters
 
 ```
 add_visual(
-    visual_type,      # "bar", "line", "donut", "card", "combo", etc.
-    bindings={...},   # role → "Table[Column]" mappings
-    x=50, y=50,       # position (pixels, canvas is 1280×720)
-    w=400, h=300,     # size (pixels, auto-defaults per type)
-    vid=1,            # unique visual id
-    tab_order=0,      # z-order
-    title="My Title", # visual title (auto-generated if omitted)
-    show_labels=False, # show data point labels
+    visual_type,       # "bar", "line", "donut", "card", "combo", etc.
+    bindings={...},    # role → "Table[Column]" mappings
+    x=50, y=50,        # position (pixels, canvas is 1280×720)
+    w=400, h=300,      # size (pixels, auto-defaults per type)
+    vid=1,             # unique visual id per page
+    tab_order=0,       # z-order
+    title="My Title",  # visual title (auto-generated if omitted)
+    show_labels=False,  # show data point labels
 )
 ```
+
+## add_title() — Dashboard Page Title
+
+```python
+add_title("My Dashboard Title", font_size=20)
+```
+
+Auto-added when `DASHBOARD_TITLE` is set (single-page) or `"title"` key
+exists in page dict (multi-page). Can also be added manually to visuals list.
 
 ## Supported Visual Types (32)
 
@@ -160,31 +185,63 @@ add_visual(
 | `map` | category, size |
 | `textbox`, `shape`, `image`, `button`, `page_navigator` | (none) |
 
-## Formatting
+## Formatting (auto-applied)
 
-Visuals automatically get:
-- **Title** (from `title=` param or auto-generated from bindings)
-- **Axis titles** enabled for charts with axes
-- **Legend** shown for charts that support it
-- **Data labels** on donut charts (category + percentage)
+- **Dashboard title** — large bold text across top of each page
+- **Visual titles** — from `title=` param or auto-generated
+- **Axis titles** — enabled on charts with axes
+- **Legend** — shown on right for applicable charts
+- **Data labels** — on donut charts; use `show_labels=True` for others
 
-Set `show_labels=True` to enable data labels on bar/line/column charts.
+## Banking / Financial Dashboard Patterns
 
-## Running
+Common layouts for financial dashboards:
 
-```bash
-python build.py input.pbix output.pbix
+### KPI Row (top of page)
+```python
+# Row of 4 KPI cards across the top
+add_visual("card", bindings={"value": "Txn[Total Assets]"},
+    x=20, y=60, w=290, h=100, vid=1, title="Total Assets")
+add_visual("card", bindings={"value": "Txn[Total Deposits]"},
+    x=330, y=60, w=290, h=100, vid=2, title="Total Deposits")
+add_visual("card", bindings={"value": "Txn[Total Loans]"},
+    x=640, y=60, w=290, h=100, vid=3, title="Total Loans")
+add_visual("card", bindings={"value": "Txn[NPL Ratio]"},
+    x=950, y=60, w=290, h=100, vid=4, title="NPL Ratio")
 ```
 
-Then open `output.pbix` in regular Power BI Desktop → verify → File → Save →
-deploy to PBRS.
+### Standard Banking Page Layout
+```python
+# KPI cards row:      y=60,  h=100  (4 cards)
+# Main charts row:    y=180, h=260  (2 charts side by side)
+# Detail row:         y=460, h=220  (table + smaller chart)
+```
 
-## Important Notes
+### Multi-Page Banking Dashboard
+```python
+def build_pages():
+    return [
+        {"name": "Executive Summary", "title": "Bank Performance Dashboard",
+         "visuals": [...]},
+        {"name": "Loan Portfolio", "title": "Loan Analysis",
+         "visuals": [...]},
+        {"name": "Deposits", "title": "Deposit Trends",
+         "visuals": [...]},
+        {"name": "Risk & Compliance", "title": "Risk Metrics",
+         "visuals": [...]},
+    ]
+```
 
-- Table and column names in bindings must match the data model exactly
-- Canvas size is 1280×720 pixels — position visuals within this grid
-- `vid` must be unique per visual on the page
-- The tool strips `SecurityBindings` — you MUST open in Desktop and
-  File → Save before deploying to PBRS
-- Works with September 2024 and May 2025 PBRS Desktop versions
-- No pip installs needed — Python standard library only
+## Reference Banking Dashboard Repos (for layout inspiration)
+
+- `github.com/pkanphade/Banking-Analysis-PowerBI-Dashboard` — client demographics, financial metrics
+- `github.com/Pratik94229/Bank-Loan-Dashboard---Power-BI` — multi-page loan portfolio
+- `github.com/meabhaykr/Financial-Insights-in-Banking-Data-using-PowerBI` — risk, customer, branch dashboards
+- `github.com/dalion619/programmable-banking-power-bi-template` — .pbit template for transaction logs
+
+## Workflow
+
+```
+Clone repo → edit visuals_config.py → build.bat input.pbix output.pbix --open
+→ Desktop opens → verify → File→Save → deploy to PBRS
+```

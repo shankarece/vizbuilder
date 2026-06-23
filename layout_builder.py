@@ -28,6 +28,46 @@ from visual_types import (
     DEFAULT_SIZES,
 )
 
+# ── Dashboard title helper ───────────────────────────────────────────────────
+
+def add_title(text: str, x: int = 0, y: int = 0, w: int = 1280, h: int = 50,
+              font_size: int = 20, vid: int = 9000) -> dict:
+    """Add a dashboard/page title as a textbox visual across the top."""
+    guid = str(uuid.uuid4())
+    pos = {"x": x, "y": y, "z": 10000, "width": w, "height": h, "tabOrder": 0}
+    config = {
+        "name": guid,
+        "layouts": [{"id": 0, "position": pos}],
+        "singleVisual": {
+            "visualType": "textbox",
+            "objects": {
+                "general": [{
+                    "properties": {
+                        "paragraphs": [{
+                            "textRuns": [{
+                                "value": text,
+                                "textStyle": {
+                                    "fontWeight": "bold",
+                                    "fontSize": f"{font_size}px",
+                                }
+                            }],
+                            "horizontalTextAlignment": "center",
+                        }]
+                    }
+                }]
+            },
+            "vcObjects": {},
+        }
+    }
+    return {
+        "id": vid,
+        "position": pos,
+        "config": json.dumps(config, separators=(",", ":")),
+        "filters": "[]",
+        "query": "",
+        "dataTransforms": "",
+    }
+
 
 # ── Field reference parser (pbi-cli style) ───────────────────────────────────
 
@@ -395,8 +435,12 @@ def write_layout(layout: dict, output_path: str) -> None:
 
 def build_layout(pbix_path: str, output_path: str,
                  page_name: str = "Page 1") -> None:
-    """Read layout from PBIX, inject visuals from visuals_config, write out."""
-    from visuals_config import PAGE_NAME, build_visuals
+    """Read layout from PBIX, inject visuals from visuals_config, write out.
+
+    Supports multi-page dashboards via build_pages() in visuals_config.py.
+    Falls back to single-page build_visuals() for backwards compatibility.
+    """
+    import visuals_config as vc
 
     layout   = read_layout(pbix_path)
     sections = layout.get("sections", [])
@@ -404,16 +448,68 @@ def build_layout(pbix_path: str, output_path: str,
     if not sections:
         raise ValueError("No pages (sections) found in Report/Layout.")
 
-    effective_page = page_name if page_name != "Page 1" else PAGE_NAME
-    sections[0]["displayName"]      = effective_page
-    sections[0]["visualContainers"] = build_visuals()
+    # Multi-page support: if visuals_config defines build_pages(), use it
+    if hasattr(vc, "build_pages"):
+        pages = vc.build_pages()
+        for i, page_def in enumerate(pages):
+            pname    = page_def["name"]
+            pvisuals = page_def["visuals"]
+            ptitle   = page_def.get("title")
+
+            if i < len(sections):
+                sec = sections[i]
+            else:
+                sec = _new_section(i)
+                sections.append(sec)
+
+            sec["displayName"] = pname
+
+            containers = []
+            if ptitle:
+                containers.append(add_title(ptitle, vid=9000 + i))
+            containers.extend(pvisuals)
+            sec["visualContainers"] = containers
+
+            print(f"  Page {i+1}: {pname}  ({len(pvisuals)} visuals)")
+
+        layout["sections"] = sections
+    else:
+        # Single-page backwards compatibility
+        effective_page = page_name if page_name != "Page 1" else vc.PAGE_NAME
+        sections[0]["displayName"] = effective_page
+
+        containers = []
+        dashboard_title = getattr(vc, "DASHBOARD_TITLE", None)
+        if dashboard_title:
+            containers.append(add_title(dashboard_title))
+        containers.extend(vc.build_visuals())
+        sections[0]["visualContainers"] = containers
+
+        total = len(containers)
+        print(f"  Page:    {effective_page}")
+        print(f"  Visuals: {total}")
 
     write_layout(layout, output_path)
-
-    count = len(sections[0]["visualContainers"])
-    print(f"  Page:    {effective_page}")
-    print(f"  Visuals: {count}")
     print(f"  Layout:  {output_path}")
+
+
+def _new_section(index: int) -> dict:
+    """Create a new blank page/section for multi-page support."""
+    return {
+        "id": index,
+        "name": str(uuid.uuid4()).replace("-", ""),
+        "displayName": f"Page {index + 1}",
+        "filters": "[]",
+        "ordinal": index,
+        "visualContainers": [],
+        "config": json.dumps({
+            "layouts": [{"id": 0, "position": {}}],
+            "name": str(uuid.uuid4()),
+        }, separators=(",", ":")),
+        "displayOption": 1,
+        "width": 1280,
+        "height": 720,
+    }
 
 
 if __name__ == "__main__":

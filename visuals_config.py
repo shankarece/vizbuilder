@@ -8,12 +8,18 @@ Uses pbi-cli's Table[Column] syntax for field binding. Example:
     add_visual("bar", bindings={
         "category": "Orders[Region]",
         "value":    "Orders[Sales]",
-    })
-
-That's it — the engine handles the legacy PBIX query/projection/selection
-boilerplate automatically.
+    }, title="Sales by Region")
 
 Canvas size: 1280 x 720 pixels.
+
+MULTI-PAGE SUPPORT
+------------------
+Option A — Single page (simple):
+    Set PAGE_NAME, DASHBOARD_TITLE, and define build_visuals().
+
+Option B — Multiple pages:
+    Define build_pages() → list of {"name": ..., "title": ..., "visuals": [...]}.
+    When build_pages() exists, it takes priority over build_visuals().
 
 Supported visual types (use either the canonical name or any alias):
     bar / barChart                    Horizontal bar chart
@@ -53,14 +59,15 @@ Binding roles (use friendly names — they map automatically):
     Waterfall:      category, value, breakdown
 """
 
-from layout_builder import add_visual
+from layout_builder import add_visual, add_title
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-PAGE_NAME = "Sales Overview"
+PAGE_NAME       = "Sales Overview"
+DASHBOARD_TITLE = "Sales Dashboard"
 
 
-# ── Visuals ───────────────────────────────────────────────────────────────────
+# ── Single-page visuals ─────────────────────────────────────────────────────
 
 def build_visuals() -> list:
     """Define all visuals for the page. Returns a list of visualContainers."""
@@ -102,53 +109,45 @@ def build_visuals() -> list:
         title="Total Sales",
     ))
 
-    # ── Add more visuals below ───────────────────────────────────────────────
-
-    # Line Chart — Sales over time
-    # visuals.append(add_visual(
-    #     "line",
-    #     bindings={
-    #         "category": "Orders[Order Date]",
-    #         "value":    "Orders[Sales]",
-    #     },
-    #     x=20, y=390, w=600, h=290,
-    #     vid=4, tab_order=3,
-    # ))
-
-    # Table — detailed data
-    # visuals.append(add_visual(
-    #     "table",
-    #     bindings={
-    #         "value": "Orders[Customer Name]",
-    #         # Add more value bindings by using PBIR role names:
-    #         # "Values": "Orders[Sales]",  # second column
-    #     },
-    #     x=20, y=390, w=600, h=290,
-    #     vid=5, tab_order=4,
-    # ))
-
-    # Combo Chart — columns + line
-    # visuals.append(add_visual(
-    #     "combo",
-    #     bindings={
-    #         "category": "Orders[Category]",
-    #         "column":   "Orders[Sales]",
-    #         "line":     "Orders[Quantity]",
-    #     },
-    #     x=20, y=390, w=600, h=290,
-    #     vid=6, tab_order=5,
-    # ))
-
-    # Scatter Chart
-    # visuals.append(add_visual(
-    #     "scatter",
-    #     bindings={
-    #         "x":      "Orders[Sales]",
-    #         "y":      "Orders[Quantity]",
-    #         "detail": "Orders[Category]",
-    #     },
-    #     x=20, y=390, w=600, h=290,
-    #     vid=7, tab_order=6,
-    # ))
-
     return visuals
+
+
+# ── Multi-page example (uncomment to use) ────────────────────────────────────
+#
+# def build_pages() -> list:
+#     """Define multiple pages. Each page has a name, title, and visuals list."""
+#     return [
+#         {
+#             "name": "Sales Overview",
+#             "title": "Sales Dashboard",
+#             "visuals": [
+#                 add_visual("clustered_column", bindings={
+#                     "category": "Orders[Category]",
+#                     "value":    "Orders[Sales]",
+#                 }, x=20, y=60, w=600, h=290, vid=1, title="Sales by Category"),
+#
+#                 add_visual("donut", bindings={
+#                     "category": "Orders[Segment]",
+#                     "value":    "Orders[Sales]",
+#                 }, x=660, y=60, w=300, h=290, vid=2, title="Sales by Segment"),
+#
+#                 add_visual("card", bindings={
+#                     "value": "Orders[Sales]",
+#                 }, x=660, y=390, w=300, h=120, vid=3, title="Total Sales"),
+#             ],
+#         },
+#         {
+#             "name": "Regional Analysis",
+#             "title": "Regional Performance",
+#             "visuals": [
+#                 add_visual("bar", bindings={
+#                     "category": "Orders[Region]",
+#                     "value":    "Orders[Sales]",
+#                 }, x=20, y=60, w=600, h=290, vid=1, title="Sales by Region"),
+#
+#                 add_visual("table", bindings={
+#                     "value": "Orders[Customer Name]",
+#                 }, x=20, y=390, w=940, h=280, vid=2, title="Customer Details"),
+#             ],
+#         },
+#     ]
