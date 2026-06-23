@@ -7,7 +7,9 @@ description: >
   "table visual", "matrix", "slicer", "combo chart", "create dashboard",
   "vizbuilder", "pbix visual", "banking dashboard", "financial dashboard",
   "add page", "add tab", "new page", "dashboard title",
-  or wants to add visuals to a PBRS report.
+  "check layout", "audit layout", "fix alignment", "lint", "layout issues",
+  "check visuals", "overlap", "misaligned",
+  or wants to add visuals to a PBRS report or audit/fix layout issues.
 ---
 
 # VizBuilder — PBRS Visual Builder Skill
@@ -239,9 +241,58 @@ def build_pages():
 - `github.com/meabhaykr/Financial-Insights-in-Banking-Data-using-PowerBI` — risk, customer, branch dashboards
 - `github.com/dalion619/programmable-banking-power-bi-template` — .pbit template for transaction logs
 
+## Layout Linter / Auditor
+
+Audit any PBIX file for layout issues and auto-fix them.
+
+```cmd
+REM Audit and print issues
+lint.bat file.pbix
+
+REM Audit and save markdown report
+lint.bat file.pbix --report audit.md
+
+REM Auto-fix issues and save corrected file
+lint.bat file.pbix --fix
+
+REM Fix and auto-open in Desktop
+lint.bat file.pbix --fix --open
+```
+
+### What it checks
+
+| Check | Severity | Auto-fixable? |
+|---|---|---|
+| Overlapping visuals | ERROR | No (needs manual repositioning) |
+| Out of canvas bounds | ERROR | YES - clamps to canvas |
+| Near-aligned positions (off by a few px) | WARNING | YES - snaps to common position |
+| Missing visual titles | WARNING | No (add via title= param) |
+| Inconsistent sizes (same type, diff size) | INFO | YES - equalizes |
+| Off-grid positions | INFO | YES - snaps to 10px grid |
+| Uneven horizontal gaps | INFO | YES - equalizes spacing |
+| Too close to canvas edge | INFO | No (intentional in some layouts) |
+
+### Using with prompts
+
+- *"Check this PBIX for layout issues"* - runs lint.bat
+- *"Fix the alignment issues in my dashboard"* - runs lint.bat --fix
+- *"Generate a layout audit report"* - runs lint.bat --report
+
+### Report output
+
+The `--report` flag generates a markdown document with:
+- Visual inventory table (all visuals, positions, sizes, titles)
+- Issues grouped by category with severity
+- Fixes applied (if --fix was used)
+
 ## Workflow
 
 ```
-Clone repo → edit visuals_config.py → build.bat input.pbix output.pbix --open
-→ Desktop opens → verify → File→Save → deploy to PBRS
+Clone repo -> edit visuals_config.py -> build.bat input.pbix output.pbix --open
+-> Desktop opens -> verify -> File->Save -> deploy to PBRS
+```
+
+To audit an existing PBIX:
+```
+lint.bat existing.pbix --fix --report audit.md --open
 ```
