@@ -20,12 +20,15 @@ from pathlib import Path
 
 from pbix_analyzer import analyze_pbix
 from data_lineage import analyze_lineage
+from consistency_checker import check_consistency
+from metadata_extractor import extract_metadata
+from generate_docs import generate_report
 
 
 def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
             lineage_only: bool = False) -> dict:
     """
-    Run complete PBIX analysis pipeline.
+    Run complete PBIX analysis pipeline (Phases 1-3).
 
     Parameters
     ----------
@@ -40,7 +43,7 @@ def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
 
     Returns
     -------
-    dict : Analysis results {metadata, lineage}
+    dict : Analysis results {metadata, lineage, violations, exports, report}
     """
 
     if not os.path.exists(pbix_path):
@@ -55,12 +58,14 @@ def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
     pbix_name = Path(pbix_path).stem
     metadata_file = os.path.join(output_dir, f"{pbix_name}_metadata.json")
     lineage_file = os.path.join(output_dir, f"{pbix_name}_lineage.json")
+    violations_file = os.path.join(output_dir, f"{pbix_name}_violations.json")
+    report_file = os.path.join(output_dir, f"{pbix_name}_audit_report.html")
 
     results = {}
 
     # Phase 1: Extract Metadata
     if not lineage_only:
-        print(f"\nPhase 1/2: Extracting metadata...")
+        print(f"\nPhase 1/3: Extracting metadata...")
         metadata = analyze_pbix(pbix_path, metadata_file)
         results["metadata"] = metadata
         print(f"[OK] Metadata extracted: {metadata_file}")
@@ -69,12 +74,29 @@ def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
         return results
 
     # Phase 2: Analyze Lineage
-    print(f"\nPhase 2/2: Analyzing lineage...")
+    print(f"\nPhase 2/3: Analyzing lineage...")
     if not os.path.exists(metadata_file):
         raise FileNotFoundError(f"Metadata file not found. Run without --lineage-only first.")
     lineage = analyze_lineage(metadata_file, lineage_file)
     results["lineage"] = lineage
     print(f"[OK] Lineage analyzed: {lineage_file}")
+
+    # Phase 3: Check Consistency
+    print(f"\nPhase 3/3: Checking consistency...")
+    violations = check_consistency(metadata_file, lineage_file, violations_file)
+    results["violations"] = violations
+    print(f"[OK] Violations checked: {violations_file}")
+
+    # Extract documentation exports
+    print(f"\nGenerating documentation exports...")
+    exports = extract_metadata(metadata_file, output_dir)
+    results["exports"] = exports
+
+    # Generate HTML report
+    print(f"\nGenerating unified HTML report...")
+    html = generate_report(metadata_file, lineage_file, violations_file, report_file)
+    results["report"] = report_file
+    print(f"[OK] Report generated: {report_file}")
 
     return results
 
