@@ -23,12 +23,13 @@ from data_lineage import analyze_lineage
 from consistency_checker import check_consistency
 from metadata_extractor import extract_metadata
 from generate_docs import generate_report
+from pbrs_validator import validate_pbrs_compatibility
 
 
 def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
             lineage_only: bool = False) -> dict:
     """
-    Run complete PBIX analysis pipeline (Phases 1-3).
+    Run complete PBIX analysis pipeline (Phases 1-4).
 
     Parameters
     ----------
@@ -43,7 +44,7 @@ def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
 
     Returns
     -------
-    dict : Analysis results {metadata, lineage, violations, exports, report}
+    dict : Analysis results {metadata, lineage, violations, exports, report, pbrs_validation}
     """
 
     if not os.path.exists(pbix_path):
@@ -60,6 +61,7 @@ def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
     lineage_file = os.path.join(output_dir, f"{pbix_name}_lineage.json")
     violations_file = os.path.join(output_dir, f"{pbix_name}_violations.json")
     report_file = os.path.join(output_dir, f"{pbix_name}_audit_report.html")
+    pbrs_validation_file = os.path.join(output_dir, f"{pbix_name}_pbrs_validation.json")
 
     results = {}
 
@@ -97,6 +99,12 @@ def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
     html = generate_report(metadata_file, lineage_file, violations_file, report_file)
     results["report"] = report_file
     print(f"[OK] Report generated: {report_file}")
+
+    # Phase 4c: PBRS Compatibility Validation
+    print(f"\nPhase 4/4: Validating PBRS compatibility...")
+    pbrs_result = validate_pbrs_compatibility(pbix_path, metadata_file, pbrs_validation_file)
+    results["pbrs_validation"] = pbrs_result
+    print(f"[OK] PBRS validation complete: {pbrs_validation_file}")
 
     return results
 
