@@ -1,0 +1,156 @@
+---
+name: VizBuilder Pages
+description: >
+  Manage report pages and tabs in PBRS .pbix reports with vizbuilder -- add
+  pages, rename tabs, set page titles, convert single-page to multi-page, and
+  plan page layouts. Invoke this skill whenever the user mentions "add page",
+  "add a tab", "new page", "new tab", "multi-page", "multiple pages", "page
+  name", "rename page", "page title", "dashboard title", "page order", "page
+  layout", "KPI row", "executive summary page", "banking dashboard", or wants
+  to organise visuals across several report pages.
+tools: vizbuilder
+---
+
+# VizBuilder Pages Skill
+
+Pages are defined in `visuals_config.py`. The canvas for every page is
+1280×720 px (16:9). No Power BI Desktop connection is needed.
+
+## Single-Page Mode
+
+```python
+from layout_builder import add_visual
+
+PAGE_NAME       = "Sales Overview"    # tab name
+DASHBOARD_TITLE = "Sales Dashboard"   # large title across the top
+
+def build_visuals() -> list:
+    return [
+        add_visual("clustered_column", bindings={
+            "category": "Orders[Category]",
+            "value":    "Orders[Sales]",
+        }, x=20, y=60, w=600, h=290, vid=1, title="Sales by Category"),
+    ]
+```
+
+Always set `DASHBOARD_TITLE` in single-page mode.
+
+## Multi-Page Mode
+
+Define `build_pages()`; it takes priority over `build_visuals()` when both
+exist.
+
+```python
+from layout_builder import add_visual
+
+def build_pages() -> list:
+    return [
+        {
+            "name":  "Sales Overview",      # tab name
+            "title": "Sales Dashboard",     # page title banner
+            "visuals": [
+                add_visual("card", bindings={"value": "Orders[Sales]"},
+                           x=20, y=60, w=300, h=120, vid=1, title="Total Sales"),
+            ],
+        },
+        {
+            "name":  "Regional Analysis",
+            "title": "Regional Performance",
+            "visuals": [
+                add_visual("bar", bindings={
+                    "category": "Orders[Region]",
+                    "value":    "Orders[Sales]",
+                }, x=20, y=60, w=600, h=290, vid=1, title="Sales by Region"),
+            ],
+        },
+    ]
+```
+
+How pages are applied:
+
+- Page order = list order. Page *i* reuses the *i*-th existing page of the
+  input PBIX; extra pages are created.
+- Each page's `visualContainers` are **replaced** by the generated visuals.
+- `vid` numbering is independent per page.
+- The `title` banner is added automatically (reserved vid `9000 + page index`),
+  so start visuals at `y=60` to clear it.
+
+## Converting Single-Page to Multi-Page
+
+When the user says "add a page" or "add a tab":
+
+1. Create `build_pages()` and move the existing `build_visuals()` visuals into
+   the first page dict, using `PAGE_NAME` as `name` and `DASHBOARD_TITLE` as
+   `title`.
+2. Append the new page as the next dict.
+3. Leave or remove `build_visuals()` — `build_pages()` wins either way.
+
+## Page Title Helper
+
+```python
+from layout_builder import add_title
+
+add_title("My Dashboard Title", font_size=20)   # full-width textbox at y=0
+```
+
+It is auto-added from `DASHBOARD_TITLE` / the page `title` key; call it
+manually only for extra headings.
+
+## Page Layout Patterns
+
+Standard 1280×720 grid (20 px margins, 20 px gutters):
+
+```python
+# Title banner:     y=0,   h=50   (auto)
+# KPI cards row:    y=60,  h=100  (4 cards, w=290, x=20/330/640/950)
+# Main charts row:  y=180, h=260  (2 charts, w=610, x=20/650)
+# Detail row:       y=460, h=240  (table + smaller chart)
+```
+
+### KPI Row
+
+```python
+add_visual("card", bindings={"value": "Txn[Total Assets]"},
+    x=20,  y=60, w=290, h=100, vid=1, title="Total Assets")
+add_visual("card", bindings={"value": "Txn[Total Deposits]"},
+    x=330, y=60, w=290, h=100, vid=2, title="Total Deposits")
+add_visual("card", bindings={"value": "Txn[Total Loans]"},
+    x=640, y=60, w=290, h=100, vid=3, title="Total Loans")
+add_visual("card", bindings={"value": "Txn[NPL Ratio]"},
+    x=950, y=60, w=290, h=100, vid=4, title="NPL Ratio")
+```
+
+### Multi-Page Banking Dashboard
+
+```python
+def build_pages():
+    return [
+        {"name": "Executive Summary", "title": "Bank Performance Dashboard", "visuals": [...]},
+        {"name": "Loan Portfolio",    "title": "Loan Analysis",              "visuals": [...]},
+        {"name": "Deposits",          "title": "Deposit Trends",             "visuals": [...]},
+        {"name": "Risk & Compliance", "title": "Risk Metrics",               "visuals": [...]},
+    ]
+```
+
+Reference repos for layout inspiration:
+
+- `github.com/pkanphade/Banking-Analysis-PowerBI-Dashboard`
+- `github.com/Pratik94229/Bank-Loan-Dashboard---Power-BI`
+- `github.com/meabhaykr/Financial-Insights-in-Banking-Data-using-PowerBI`
+- `github.com/dalion619/programmable-banking-power-bi-template`
+
+## Not Supported Yet
+
+Page backgrounds, hidden pages, drillthrough pages, bookmarks, themes, and
+page/visual filters are not generated by vizbuilder. Configure them in
+Power BI Desktop after building, before **File → Save**.
+
+## Workflow: Add a Page
+
+```cmd
+REM 1. Convert to / extend build_pages() in visuals_config.py
+REM 2. Build and open
+build.bat input.pbix output.pbix --open
+REM 3. Lint every page
+lint.bat output.pbix
+```

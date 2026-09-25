@@ -53,7 +53,7 @@ REM Or without auto-open
 python build.py MyReport.pbix MyReport-WithVisuals.pbix
 ```
 
-### Install Windsurf / Claude Code skill (optional)
+### Install Windsurf / Claude Code skills (optional)
 
 ```cmd
 python install_skill.py
@@ -73,8 +73,9 @@ Then use natural language prompts in Windsurf to create visuals.
 | `layout_builder.py` | Layout read/write engine and query builders | No |
 | `visual_types.py` | 32 visual types, data roles, aliases (ported from pbi-cli) | No |
 | `pbix_patch.py` | PBIX zip manipulation | No |
-| `install_skill.py` | Install Claude Code / Windsurf skill | Run once |
-| `skill/SKILL.md` | Claude Code skill definition | No |
+| `install_skill.py` | Install / list / uninstall Claude Code / Windsurf skills | Run once |
+| `skills/*/SKILL.md` | 8 task-focused Claude Code skills | No |
+| `tests/test_skills.py` | Skill frontmatter, trigger, and installer tests | No |
 | `requirements.txt` | Dependency list (empty — stdlib only) | No |
 
 ---
@@ -300,27 +301,54 @@ independent `vid` numbering.
 
 ## Windsurf / Claude Code Integration
 
-vizbuilder includes a Claude Code skill so you can create visuals using
-natural language prompts in Windsurf or Claude Code.
+vizbuilder ships a set of task-focused Claude Code skills (same structure
+as [pbi-cli](https://github.com/MinaSaad1/pbi-cli)'s skills), so Windsurf or
+Claude Code loads only the guidance relevant to your prompt.
 
-### Install the skill
+| Skill | Use it for |
+|---|---|
+| `vizbuilder-report` | End-to-end build workflow, PBIX format, SecurityBindings |
+| `vizbuilder-visuals` | Adding visuals, visual types, `Table[Column]` bindings |
+| `vizbuilder-pages` | Multi-page dashboards, tabs, page titles, layout patterns |
+| `vizbuilder-layout` | Linting and auto-fixing alignment, overlap, sizing |
+| `vizbuilder-analysis` | Metadata, data lineage, orphaned fields, consistency checks |
+| `vizbuilder-docs` | Data dictionary, measure catalog, HTML audit report |
+| `vizbuilder-deployment` | PBRS compatibility validation, deployment checklist |
+| `vizbuilder-diagnostics` | Errors and troubleshooting |
+
+### Install the skills
 
 ```bash
-python install_skill.py
+python install_skill.py                                  # install / update all
+python install_skill.py list                             # show install status
+python install_skill.py install --skill vizbuilder-visuals
+python install_skill.py uninstall                        # remove all
 ```
 
-This copies the skill to `~/.claude/skills/vizbuilder/` and updates `CLAUDE.md`.
+Each skill is copied to `~/.claude/skills/<name>/SKILL.md`, and a
+marker-delimited block listing the skills is added to `~/.claude/CLAUDE.md`
+(removed again by `uninstall`). Installing also removes the old single
+`~/.claude/skills/vizbuilder/` skill and its `CLAUDE.md` entry.
 Restart Windsurf after installing.
 
 ### Using prompts
 
 After installing, just describe what you want:
 
-- *"Add a bar chart showing Sales by Region"*
-- *"Create a dashboard with a column chart, donut chart, and KPI card"*
-- *"Add a combo chart with Revenue columns and Profit line"*
+- *"Add a bar chart showing Sales by Region"* → `vizbuilder-visuals`
+- *"Add a Loan Portfolio tab to the dashboard"* → `vizbuilder-pages`
+- *"Fix the alignment issues in my dashboard"* → `vizbuilder-layout`
+- *"Find unused columns in this PBIX"* → `vizbuilder-analysis`
+- *"Is this file ready for Report Server?"* → `vizbuilder-deployment`
 
-The AI will edit `visuals_config.py` and run `build.py` for you.
+The AI will edit `visuals_config.py` and run `build.py` / `lint.py` / `analyze.py` for you.
+
+### Testing the skills
+
+```bash
+python -m unittest discover tests           # frontmatter, triggers, installer
+python tests/test_skills.py --triggers      # print prompt -> skill table
+```
 
 ---
 
