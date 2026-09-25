@@ -109,26 +109,34 @@ def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
     return results
 
 
-def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    flags = [a for a in sys.argv[1:] if a.startswith("--")]
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    output_dir = None
+
+    # --output takes the next argument as its value (if it isn't a flag)
+    rest = []
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--output":
+            if i + 1 < len(argv) and not argv[i + 1].startswith("--"):
+                output_dir = argv[i + 1]
+                i += 1
+            else:
+                output_dir = "./pbix_analysis"
+        else:
+            rest.append(argv[i])
+        i += 1
+
+    args = [a for a in rest if not a.startswith("--")]
+    flags = [a for a in rest if a.startswith("--")]
 
     if not args:
         print(__doc__)
         sys.exit(1)
 
     pbix_path = args[0]
-    output_dir = None
     metadata_only = "--metadata-only" in flags
     lineage_only = "--lineage-only" in flags
-
-    # Parse --output flag
-    if "--output" in flags:
-        idx = flags.index("--output")
-        if idx + 1 < len(flags) and not flags[idx + 1].startswith("--"):
-            output_dir = flags[idx + 1]
-        else:
-            output_dir = "./pbix_analysis"
 
     print("=" * 60)
     print("  PBIX Analyzer Suite")

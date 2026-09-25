@@ -3,7 +3,8 @@
 Add visuals to Power BI Report Server (PBRS) `.pbix` files programmatically
 using Python — no Power BI Service, no premium licence, no external packages.
 
-Compatible with **September 2024**, **May 2025**, and later versions of PBI Desktop.
+Works with **Power BI Desktop for Report Server** (recommended) and regular
+PBI Desktop — September 2024, May 2025, and later releases.
 
 ---
 
@@ -20,7 +21,10 @@ change — even 1 byte — causes `MashupValidationError` on open.
 **The solution**:
 1. Strip `SecurityBindings` from the PBIX
 2. Inject the modified `Report/Layout` with new visuals
-3. Open in regular PBI Desktop → **File → Save** regenerates `SecurityBindings`
+3. Open in Power BI Desktop for Report Server (or regular Desktop) → **File → Save** regenerates `SecurityBindings`
+
+Everything else in the file (`DataModel`, `Version`, settings) is copied
+byte-for-byte, so a file saved by PBRS Desktop stays a PBRS Desktop file.
 
 ---
 
@@ -29,12 +33,26 @@ change — even 1 byte — causes `MashupValidationError` on open.
 | Tool | Version | Notes |
 |---|---|---|
 | Python | 3.8+ | No pip installs — standard library only |
-| Regular PBI Desktop | Match your PBRS version | Opens result and regenerates SecurityBindings |
-| PBRS Desktop | Any | To verify and deploy final file |
+| Power BI Desktop for Report Server | Same release as your Report Server | **Recommended.** Prepares the input, opens the result, regenerates SecurityBindings |
+| Regular PBI Desktop | Same monthly release as PBRS Desktop | Optional alternative |
 
-> **Important**: use the **same monthly release** for both regular Desktop and
-> PBRS Desktop (e.g. both September 2024 or both May 2025). Mismatched versions
-> can cause "unrecognized version" errors.
+> **Recommended: do everything in Power BI Desktop for Report Server.** A file
+> saved there always matches your server. If you use regular Desktop, it must be
+> the **same monthly release** as your PBRS Desktop (e.g. both September 2024 or
+> both May 2025), or the server shows "unrecognized version".
+
+### Visual types to check on Report Server
+
+PBRS Desktop has no preview features and ships a few releases a year, so some
+newer visuals may be missing from your release. `build.py` prints a
+**PBRS Desktop compatibility warning** when you use one of these:
+
+| Visual | Safer choice |
+|---|---|
+| `map` / `azure_map` (Azure Maps) | `table` or `bar` |
+| `new_card`, `modern_card` | `card` or `multi_row_card` |
+| `text_slicer`, `list_slicer`, `advanced_slicer` | `slicer` |
+| `page_navigator` | `button` |
 
 ---
 
@@ -46,8 +64,12 @@ No packages to install. Just clone and run. **No PowerShell needed — works wit
 git clone https://github.com/shankarece/vizbuilder.git
 cd vizbuilder
 
-REM Build and auto-open in Power BI Desktop
+REM Build and auto-open (uses Power BI Desktop for Report Server when installed)
 build.bat MyReport.pbix MyReport-WithVisuals.pbix --open
+
+REM Force a specific Desktop edition
+build.bat MyReport.pbix MyReport-WithVisuals.pbix --open --rs
+build.bat MyReport.pbix MyReport-WithVisuals.pbix --open --regular
 
 REM Or without auto-open
 python build.py MyReport.pbix MyReport-WithVisuals.pbix
@@ -73,9 +95,11 @@ Then use natural language prompts in Windsurf to create visuals.
 | `layout_builder.py` | Layout read/write engine and query builders | No |
 | `visual_types.py` | 32 visual types, data roles, aliases (ported from pbi-cli) | No |
 | `pbix_patch.py` | PBIX zip manipulation | No |
+| `desktop.py` | Finds/opens Power BI Desktop (Report Server edition first) for `--open` | No |
 | `install_skill.py` | Install / list / uninstall Claude Code / Windsurf skills | Run once |
 | `skills/*/SKILL.md` | 8 task-focused Claude Code skills | No |
 | `tests/test_skills.py` | Skill frontmatter, trigger, and installer tests | No |
+| `tests/test_pbrs.py` | PBRS Desktop compatibility tests (synthetic PBIX build) | No |
 | `requirements.txt` | Dependency list (empty — stdlib only) | No |
 
 ---
@@ -84,7 +108,7 @@ Then use natural language prompts in Windsurf to create visuals.
 
 ### Step 1 — Prepare the PBIX
 
-Open your `.pbix` in **regular PBI Desktop**, load your data, and **File → Save**.
+Open your `.pbix` in **Power BI Desktop for Report Server**, load your data, and **File → Save**.
 This ensures the data model is populated before we add visuals.
 
 ### Step 2 — Configure your visuals
@@ -133,7 +157,8 @@ Step 2/2  Patching PBIX...
 
   Done!
   Next steps:
-  1. Open the output PBIX in regular PBI Desktop
+  1. Open the output PBIX in Power BI Desktop for Report Server
+     (or regular Desktop from the same monthly release)
   2. Verify visuals look correct
   3. File -> Save  (regenerates SecurityBindings)
   4. Deploy to Power BI Report Server
@@ -142,7 +167,7 @@ Step 2/2  Patching PBIX...
 
 ### Step 4 — Save and deploy
 
-Open `MyReport-WithVisuals.pbix` in **regular PBI Desktop** → verify visuals →
+Open `MyReport-WithVisuals.pbix` in **Power BI Desktop for Report Server** → verify visuals →
 **File → Save** → deploy the saved file to Report Server.
 
 ---
@@ -356,9 +381,9 @@ python tests/test_skills.py --triggers      # print prompt -> skill table
 
 ```
 PBRS .pbix
-  └─► regular Desktop: Get Data → load → File→Save → Close
+  └─► PBRS Desktop: Get Data → load → File→Save → Close
   └─► python build.py input.pbix output.pbix
-  └─► regular Desktop: open output → verify → File→Save
+  └─► PBRS Desktop: open output → verify → File→Save
   └─► deploy .pbix to Power BI Report Server
 ```
 
@@ -370,5 +395,7 @@ PBRS .pbix
 |---|---|---|
 | `MashupValidationError` | SecurityBindings not removed | Ensure you're opening the *output* file, not the input |
 | Visuals show "Can't display visual" | Table or column name mismatch | Check `TABLE` in `visuals_config.py` matches data model exactly |
-| "Unrecognized version" on PBRS | Version mismatch between Desktop versions | Use same monthly release for regular and PBRS Desktop |
+| "Unrecognized version" on PBRS | File last saved by a newer regular Desktop | Open and save in Power BI Desktop for Report Server (or regular Desktop from the same month) |
+| Visual blank or "not supported" in PBRS Desktop | Visual type newer than your PBRS release | Use the safer choice from the build warning (e.g. `slicer`, `card`) |
+| `--open` opens the wrong Desktop | Both editions installed | Add `--rs` or `--regular`, or set `PBI_DESKTOP_PATH` |
 | `FileNotFoundError` on input | Wrong path | Use full absolute path or run from the same folder as the PBIX |

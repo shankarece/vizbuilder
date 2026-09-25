@@ -27,7 +27,7 @@ the full `analyze.py` run also produces `<name>_pbrs_validation.json`.)
 | Check | What it flags |
 |---|---|
 | File size | Against the PBRS upload limit |
-| Visual types | Visuals not supported on Report Server |
+| Visual types | Visuals that may be missing on Report Server (same list as the build warning) |
 | Relationships | Bidirectional cross-filters (performance) |
 | Premium features | Calculated tables and premium-only patterns |
 | SecurityBindings | Missing — file must be re-saved in Desktop |
@@ -42,21 +42,25 @@ is expected until you save it in Desktop.
 
 ## Deployment Steps
 
-1. **Build** — `build.bat input.pbix output.pbix --open`
+1. **Build** — `build.bat input.pbix output.pbix --open --rs`
+   (resolve any "PBRS Desktop compatibility" warnings)
 2. **Lint** — `lint.bat output.pbix` (resolve all errors)
 3. **Validate** — `python analyze.py output.pbix --output analysis\`, then
    resolve every error in `output_pbrs_validation.json`
-4. **Verify in regular Desktop** — every visual renders, no
-   "Can't display visual"
-5. **File → Save** in regular Desktop (regenerates SecurityBindings)
-6. **Open in PBRS Desktop** (same monthly release) to confirm it loads
-7. **Upload** to the Report Server web portal (or save to Report Server from
-   PBRS Desktop)
+4. **Verify in Power BI Desktop for Report Server** — every visual renders,
+   no "Can't display visual"
+5. **File → Save** in PBRS Desktop (regenerates SecurityBindings)
+6. **Upload** to the Report Server web portal, or **File → Save as → Power BI
+   Report Server** from PBRS Desktop
+
+If regular Desktop was used for steps 4–5, open the saved file in PBRS Desktop
+once to confirm it loads before uploading.
 
 ## Version Rules
 
-- Regular Desktop and PBRS Desktop must be the **same monthly release**
-  (e.g. both September 2024, or both May 2025).
+- Preferred: prepare, open, and save only in Power BI Desktop for Report Server.
+- If regular Desktop is used, it must be the **same monthly release** as PBRS
+  Desktop (e.g. both September 2024, or both May 2025).
 - The Report Server must be on a release that matches or is newer than the
   PBRS Desktop used to save the file.
 
@@ -66,6 +70,7 @@ is expected until you save it in Desktop.
 - [ ] No PBRS validation errors
 - [ ] All visuals have titles
 - [ ] Saved in Desktop after the last build (SecurityBindings present)
+- [ ] No "PBRS Desktop compatibility" warnings from the build (or confirmed OK)
 - [ ] Opens in PBRS Desktop without version warnings
 - [ ] `.pbix` not committed to git
 

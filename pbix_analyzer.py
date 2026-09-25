@@ -269,13 +269,20 @@ def _extract_pbix_version(pbix_path: str) -> str:
         with zipfile.ZipFile(pbix_path, "r") as z:
             if "Version" in z.namelist():
                 version_raw = z.read("Version")
-                # Version file is typically XML or JSON
+                # Desktop writes the Version entry as UTF-16 LE (e.g. "1.28");
+                # fall back to UTF-8 / JSON for other producers.
+                if b"\x00" in version_raw:
+                    text = version_raw.decode("utf-16-le", errors="ignore")
+                else:
+                    text = version_raw.decode("utf-8", errors="ignore")
+                text = text.lstrip("\ufeff").strip()
                 try:
-                    version_text = version_raw.decode("utf-8")
-                    version = json.loads(version_text)
-                    return version.get("version", "Unknown")
-                except:
-                    return version_raw.decode("utf-8", errors="ignore").strip()[:50]
+                    version = json.loads(text)
+                    if isinstance(version, dict):
+                        return version.get("version", "Unknown")
+                except ValueError:
+                    pass
+                return text[:50] or "Unknown"
     except:
         pass
     return "Unknown"

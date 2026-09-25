@@ -37,12 +37,15 @@ python metadata_extractor.py analysis\file_metadata.json docs\
 
 | Output | Contents |
 |---|---|
-| `data_dictionary.json` | All tables, columns, measures with metadata |
-| `measure_catalog.csv` | Measures with DAX expressions and format strings |
-| `columns_registry.csv` | Columns with types, hidden flag, expressions |
-| `relationships.md` | Relationships with cardinality |
-| `tables_summary.md` | Tables with column and measure counts |
-| `visual_registry.json` | Visuals with bindings and positions |
+| `<name>_data_dictionary.json` | All tables, columns, measures with metadata |
+| `<name>_measures.csv` | Measure catalog: DAX expressions and format strings |
+| `<name>_columns.csv` | Column registry: types, hidden flag, expressions |
+| `<name>_relationships.md` | Relationships with cardinality |
+| `<name>_tables.md` | Tables with column and measure counts |
+| `<name>_visuals.json` | Visual registry: bindings and positions |
+
+`<name>` is the PBIX file name. The CSVs are only written when the model
+schema could be read (see `datamodel.tables` in vizbuilder-analysis).
 
 ## HTML Audit Report
 
@@ -71,8 +74,8 @@ python analyze.py file.pbix --output analysis\
 
 REM 2. Share:
 REM    analysis\file_audit_report.html   (overview for everyone)
-REM    analysis\measure_catalog.csv      (for analysts)
-REM    analysis\relationships.md         (for modellers)
+REM    analysis\file_measures.csv        (for analysts)
+REM    analysis\file_relationships.md    (for modellers)
 ```
 
 ## Best Practices

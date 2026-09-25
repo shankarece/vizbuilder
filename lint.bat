@@ -8,11 +8,12 @@ REM    lint.bat file.pbix                     Audit and print issues
 REM    lint.bat file.pbix --fix               Auto-fix and save -fixed.pbix
 REM    lint.bat file.pbix --report out.md     Save audit report as markdown
 REM    lint.bat file.pbix --fix --open        Fix and auto-open in Desktop
+REM    lint.bat file.pbix --fix --open --rs   Open in PBI Desktop for Report Server
 REM
 REM ============================================================
 
 if "%~1"=="" (
-    echo Usage: lint.bat ^<file.pbix^> [--fix] [--report out.md] [--open]
+    echo Usage: lint.bat ^<file.pbix^> [--fix] [--report out.md] [--open] [--rs ^| --regular]
     exit /b 1
 )
 

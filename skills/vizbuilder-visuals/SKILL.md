@@ -178,6 +178,22 @@ A `bindings` dict can hold only one field per role (it is a Python dict).
 `textbox` / `text_box`, `shape`, `image` / `img`, `button` / `action_button`,
 `page_navigator` / `page_nav` — pass `bindings={}`.
 
+## Report Server Compatibility
+
+Power BI Desktop for Report Server has no preview features and ships a few
+releases a year. `build.py` warns when a config uses a type that may be missing
+from the user's PBRS release. When building for Report Server, prefer the
+safer choice:
+
+| Type | Why | Use instead |
+|---|---|---|
+| `map` / `azure_map` | Azure Maps needs online Azure services | `table` or `bar` |
+| `new_card`, `modern_card` | New card may be missing | `card` or `multi_row_card` |
+| `text_slicer`, `list_slicer`, `advanced_slicer` | Newer slicers may be missing | `slicer` |
+| `page_navigator` | Missing in older releases | `button` |
+
+Only use these when the user confirms their PBRS Desktop release shows them.
+
 ## Default Sizes
 
 Omitting `w`/`h` uses a per-type default from `visual_types.DEFAULT_SIZES`

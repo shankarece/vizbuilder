@@ -5,7 +5,8 @@ description: >
   vizbuilder. Invoke this skill whenever the user mentions "build report",
   "build the pbix", "PBRS report", "report server", "pbix file", "run build",
   "build.bat", "open in Desktop", "SecurityBindings", "report layout", "legacy
-  layout", "how does vizbuilder work", or wants the overall workflow from an
+  layout", "Power BI Desktop for Report Server", "PBRS Desktop", "RS Desktop",
+  "how does vizbuilder work", or wants the overall workflow from an
   input .pbix to a deployable report. For specific tasks, see also:
   vizbuilder-visuals (charts, bindings), vizbuilder-pages (tabs, titles),
   vizbuilder-layout (lint, alignment), vizbuilder-analysis (lineage, audit),
@@ -32,6 +33,7 @@ Scripts live in the repo root (cloned from
 | `layout_builder.py` | Layout read/write engine, `add_visual`, `add_title` | No |
 | `visual_types.py` | 32 visual types, role aliases, default sizes | No |
 | `pbix_patch.py` | PBIX zip manipulation | No |
+| `desktop.py` | Finds/opens Power BI Desktop for `--open` | No |
 
 ## Legacy PBIX Format (what vizbuilder edits)
 
@@ -52,18 +54,32 @@ with `MashupValidationError`. vizbuilder therefore:
 2. Replaces `Report/Layout` with the generated layout
 3. Leaves everything else byte-for-byte (DataModel is copied untouched)
 
-Opening the output in regular Desktop and pressing **File → Save** regenerates
-`SecurityBindings`.
+Opening the output in Power BI Desktop for Report Server (or regular Desktop
+from the same monthly release) and pressing **File → Save** regenerates
+`SecurityBindings`. Because `Version`, `DataModel`, and report settings are
+copied unchanged, a file saved by PBRS Desktop stays a PBRS Desktop file.
 
 ## Building
 
 ```cmd
-REM Build and auto-open in Power BI Desktop
+REM Build and auto-open (Power BI Desktop for Report Server when installed)
 build.bat input.pbix output.pbix --open
+
+REM Force the Desktop edition used by --open
+build.bat input.pbix output.pbix --open --rs
+build.bat input.pbix output.pbix --open --regular
 
 REM Build only
 python build.py input.pbix output.pbix
 ```
+
+`--open` looks for `%ProgramFiles%\Microsoft Power BI Desktop RS\bin\PBIDesktop.exe`
+first, then regular Desktop. Set `PBI_DESKTOP_PATH` to use a specific
+`PBIDesktop.exe`. The build refuses to overwrite its input.
+
+If any visual may be missing from PBRS Desktop (e.g. Azure Map, new card,
+text/list/button slicers), the build prints a
+**PBRS Desktop compatibility warning** with a safer alternative.
 
 Never overwrite the input file — always write to a new output path.
 
@@ -73,8 +89,9 @@ Never overwrite the input file — always write to a new output path.
    edit the engine files.
 2. **Prepare the input first** — the input `.pbix` must already have its data
    loaded and saved in Desktop so the tables/columns you bind to exist.
-3. **Use the same monthly release** of regular Desktop and PBRS Desktop
-   (e.g. both September 2024). Mismatches cause "unrecognized version".
+3. **Prefer Power BI Desktop for Report Server** for preparing the input and
+   saving the output. If regular Desktop is used, it must be the **same monthly
+   release** as PBRS Desktop, or the server reports "unrecognized version".
 4. **Always File → Save in Desktop** before deploying — a file without
    `SecurityBindings` is not deployable.
 5. **Never commit `.pbix` files** with real data (they are git-ignored).

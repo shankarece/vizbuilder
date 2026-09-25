@@ -99,6 +99,8 @@ TRIGGER_CASES = [
     # vizbuilder-report
     ("How does vizbuilder work end to end, from pbix file to build.bat", "vizbuilder-report"),
     ("Explain SecurityBindings and the legacy report layout", "vizbuilder-report"),
+    ("Open the built report in RS Desktop instead of regular Power BI Desktop",
+     "vizbuilder-report"),
 ]
 
 EXPECTED_SKILLS = {

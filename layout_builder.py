@@ -26,6 +26,7 @@ from visual_types import (
     ROLE_ALIASES,
     MEASURE_ROLES,
     DEFAULT_SIZES,
+    PBRS_VISUAL_NOTES,
 )
 
 # ── Dashboard title helper ───────────────────────────────────────────────────
@@ -433,12 +434,30 @@ def write_layout(layout: dict, output_path: str) -> None:
         f.write(out_bytes)
 
 
+def pbrs_visual_warnings(layout: dict) -> list:
+    """Return one message per visual whose type may not open in PBRS Desktop."""
+    warnings = []
+    for sec in layout.get("sections", []):
+        page = sec.get("displayName", "?")
+        for vc in sec.get("visualContainers", []):
+            try:
+                sv = json.loads(vc.get("config", "{}")).get("singleVisual", {})
+            except (TypeError, ValueError):
+                continue
+            vtype = sv.get("visualType", "")
+            if vtype in PBRS_VISUAL_NOTES:
+                reason, instead = PBRS_VISUAL_NOTES[vtype]
+                warnings.append(f"{page}: {vtype} -- {reason}; consider {instead}")
+    return warnings
+
+
 def build_layout(pbix_path: str, output_path: str,
-                 page_name: str = "Page 1") -> None:
+                 page_name: str = "Page 1") -> dict:
     """Read layout from PBIX, inject visuals from visuals_config, write out.
 
     Supports multi-page dashboards via build_pages() in visuals_config.py.
     Falls back to single-page build_visuals() for backwards compatibility.
+    Returns the written layout dict.
     """
     import visuals_config as vc
 
@@ -491,6 +510,7 @@ def build_layout(pbix_path: str, output_path: str,
 
     write_layout(layout, output_path)
     print(f"  Layout:  {output_path}")
+    return layout
 
 
 def _new_section(index: int) -> dict:

@@ -11,6 +11,7 @@ Usage:
     python lint.py <file.pbix> --fix              # auto-fix and write corrected PBIX
     python lint.py <file.pbix> --report out.md    # save audit report as markdown
     python lint.py <file.pbix> --fix --open       # fix and auto-open in Desktop
+    python lint.py <file.pbix> --fix --open --rs  # open in PBI Desktop for Report Server
 
 Compatible with September 2024 and May 2025 PBRS Desktop versions.
 """
@@ -23,6 +24,7 @@ import zipfile
 import tempfile
 from collections import defaultdict
 
+from desktop import AUTO, open_in_desktop, prefer_from_flags
 from layout_builder import read_layout, write_layout
 from pbix_patch import patch_pbix
 
@@ -577,7 +579,7 @@ def generate_report(visuals: list, issues: list, fixes: list = None) -> str:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def lint(pbix_path: str, do_fix: bool = False, report_path: str = None,
-         auto_open: bool = False) -> tuple:
+         auto_open: bool = False, prefer: str = AUTO) -> tuple:
     """Run all checks on a PBIX file. Returns (issues, visuals, fixes)."""
 
     layout = read_layout(pbix_path)
@@ -631,10 +633,7 @@ def lint(pbix_path: str, do_fix: bool = False, report_path: str = None,
             print(f"\n  Fixed file: {out_path}")
 
             if auto_open:
-                import subprocess
-                abs_path = os.path.abspath(out_path)
-                os.startfile(abs_path)
-                print(f"  Opening in Desktop...")
+                open_in_desktop(out_path, prefer)
         else:
             print(f"\n  No fixes needed --layout is clean.")
 
@@ -654,7 +653,7 @@ if __name__ == "__main__":
 
     if not args:
         print(__doc__)
-        print("Usage: python lint.py <file.pbix> [--fix] [--report out.md] [--open]")
+        print("Usage: python lint.py <file.pbix> [--fix] [--report out.md] [--open] [--rs | --regular]")
         sys.exit(1)
 
     pbix_path = args[0]
@@ -687,6 +686,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print(f"  File: {pbix_path}")
 
-    lint(pbix_path, do_fix=do_fix, report_path=report_path, auto_open=auto_open)
+    lint(pbix_path, do_fix=do_fix, report_path=report_path, auto_open=auto_open,
+         prefer=prefer_from_flags(flags))
 
     print("=" * 60)

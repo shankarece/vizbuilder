@@ -37,13 +37,16 @@ Run these from the repo root. If `python` is not found, use `py` on Windows.
 | `MashupValidationError` on open | Opened the input, or a file whose SecurityBindings wasn't stripped | Open the *output* file |
 | "Can't display visual" | Table/column name mismatch | Compare bindings with `datamodel.tables` in `*_metadata.json` or the Desktop Data pane (exact case and spaces) |
 | Visual shows wrong totals / error on text field | Text column in an aggregated role (wrapped in `Sum`) | Bind numeric columns to value roles; set "Don't summarize" in Desktop |
-| "Unrecognized version" on PBRS | Regular and PBRS Desktop from different months | Use the same monthly release for both |
+| "Unrecognized version" on PBRS | File last saved by a newer regular Desktop | Open and save in Power BI Desktop for Report Server (or regular Desktop from the same month) |
+| Visual blank / "not supported" in PBRS Desktop | Visual type newer than the PBRS release | Use the safer type from the build warning (`slicer`, `card`, …) |
 | `FileNotFoundError` on input | Wrong path | Use an absolute path or run from the PBIX folder |
 | `ValueError: Invalid field reference` | Binding not in `Table[Column]` form | Use `"Orders[Sales]"`, not `"Orders.Sales"` |
 | `No pages (sections) found` | Input `.pbix` has no report page | Open input in Desktop, add a page, save |
 | Visuals missing on page 2+ | `build_pages()` not defined / wrong key | Each page dict needs `name` and `visuals` |
 | Visual overlaps the page title | `y` < 50 | Start visuals at `y=60` |
-| `--open` does nothing | Desktop not found / not Windows | Open the output file manually |
+| `--open` does nothing | Desktop not found / not Windows | Open the output file manually, or set `PBI_DESKTOP_PATH` |
+| `--open` uses the wrong Desktop | Both editions installed | Add `--rs` or `--regular`, or set `PBI_DESKTOP_PATH` |
+| `Power BI Desktop for Report Server not found` | `--rs` used, RS edition not in Program Files | Install it or set `PBI_DESKTOP_PATH` |
 | Changes lost after rebuild | Edited the output in Desktop, then rebuilt | Rebuild regenerates layout from `visuals_config.py` — put changes there |
 
 ## Inspecting the Output
