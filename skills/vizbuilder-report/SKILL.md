@@ -11,7 +11,8 @@ description: >
   vizbuilder-visuals (charts, bindings), vizbuilder-pages (tabs, titles),
   vizbuilder-layout (lint, alignment), vizbuilder-analysis (lineage, audit),
   vizbuilder-docs (data dictionary, HTML report), vizbuilder-deployment
-  (PBRS validation, deploy), vizbuilder-diagnostics (errors, troubleshooting).
+  (PBRS validation, deploy), vizbuilder-diagnostics (errors, troubleshooting),
+  vizbuilder-modeling (build the data model first, on a live connection).
 tools: vizbuilder
 ---
 
@@ -88,7 +89,9 @@ Never overwrite the input file — always write to a new output path.
 1. **Edit only `visuals_config.py`** — never create a new config file and never
    edit the engine files.
 2. **Prepare the input first** — the input `.pbix` must already have its data
-   loaded and saved in Desktop so the tables/columns you bind to exist.
+   loaded and saved in Desktop so the tables/columns you bind to exist. If
+   there's no data model yet, build it with a live-connection tool first
+   (see vizbuilder-modeling), not with vizbuilder.
 3. **Prefer Power BI Desktop for Report Server** for preparing the input and
    saving the output. If regular Desktop is used, it must be the **same monthly
    release** as PBRS Desktop, or the server reports "unrecognized version".
@@ -123,6 +126,7 @@ REM 6. In Desktop: verify -> File -> Save -> deploy to Report Server
 
 | Skill | When to use |
 |---|---|
+| **vizbuilder-modeling** | Data model doesn't exist yet — build it live before running vizbuilder |
 | **vizbuilder-visuals** | Add visuals, pick types, bind `Table[Column]` fields |
 | **vizbuilder-pages** | Multi-page/tab dashboards, page titles, page layouts |
 | **vizbuilder-layout** | Audit and auto-fix alignment, overlap, sizing |

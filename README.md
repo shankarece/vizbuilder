@@ -332,6 +332,7 @@ Claude Code loads only the guidance relevant to your prompt.
 
 | Skill | Use it for |
 |---|---|
+| `vizbuilder-modeling` | Handoff to a live-connection tool (pbi-cli / a Power BI-Fabric MCP) to build the data model first |
 | `vizbuilder-report` | End-to-end build workflow, PBIX format, SecurityBindings |
 | `vizbuilder-visuals` | Adding visuals, visual types, `Table[Column]` bindings |
 | `vizbuilder-pages` | Multi-page dashboards, tabs, page titles, layout patterns |
@@ -365,8 +366,25 @@ After installing, just describe what you want:
 - *"Fix the alignment issues in my dashboard"* → `vizbuilder-layout`
 - *"Find unused columns in this PBIX"* → `vizbuilder-analysis`
 - *"Is this file ready for Report Server?"* → `vizbuilder-deployment`
+- *"Build the data model with a live connection, then add the visuals"* → `vizbuilder-modeling`
 
 The AI will edit `visuals_config.py` and run `build.py` / `lint.py` / `analyze.py` for you.
+
+### Data model vs. report layer
+
+vizbuilder only builds the **report layer** (pages, visuals, bindings) — it
+never touches the `DataModel` entry inside the `.pbix`, since that's a
+compressed Analysis Services binary, not JSON. Creating tables, relationships,
+and measures needs a **live connection** to Power BI Desktop (via
+[pbi-cli](https://github.com/MinaSaad1/pbi-cli) or a Power BI/Fabric MCP
+server), which is a different tool with different requirements (Desktop
+running, `pythonnet`, Windows) than vizbuilder's offline, dependency-free
+design.
+
+For an agent to build a full dashboard end to end — data model included —
+pair vizbuilder with a live-connection tool: build the model first (live),
+close the connection, then run vizbuilder offline against the same file to
+add the report. See `vizbuilder-modeling` for the exact handoff.
 
 ### Testing the skills
 

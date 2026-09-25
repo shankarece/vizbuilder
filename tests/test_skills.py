@@ -101,12 +101,19 @@ TRIGGER_CASES = [
     ("Explain SecurityBindings and the legacy report layout", "vizbuilder-report"),
     ("Open the built report in RS Desktop instead of regular Power BI Desktop",
      "vizbuilder-report"),
+    # vizbuilder-modeling
+    ("Why can't vizbuilder create tables and measures? Use a Power BI MCP for that",
+     "vizbuilder-modeling"),
+    ("Connect live to Power BI Desktop and build the data model with DAX measures",
+     "vizbuilder-modeling"),
+    ("Set up an agentic workflow: build the tabular object model, then the visuals",
+     "vizbuilder-modeling"),
 ]
 
 EXPECTED_SKILLS = {
     "vizbuilder-report", "vizbuilder-visuals", "vizbuilder-pages",
     "vizbuilder-layout", "vizbuilder-analysis", "vizbuilder-docs",
-    "vizbuilder-deployment", "vizbuilder-diagnostics",
+    "vizbuilder-deployment", "vizbuilder-diagnostics", "vizbuilder-modeling",
 }
 
 
