@@ -37,7 +37,8 @@ def patch_pbix(input_path: str, layout_path: str, output_path: str) -> None:
     if not os.path.exists(layout_path):
         raise FileNotFoundError(f"Layout file not found: {layout_path}")
 
-    new_layout_bytes = open(layout_path, "rb").read()
+    with open(layout_path, "rb") as f:
+        new_layout_bytes = f.read()
 
     with zipfile.ZipFile(input_path, "r") as src, \
          zipfile.ZipFile(output_path, "w") as dst:

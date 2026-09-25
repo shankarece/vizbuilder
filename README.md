@@ -3,7 +3,8 @@
 Add visuals to Power BI Report Server (PBRS) `.pbix` files programmatically
 using Python — no Power BI Service, no premium licence, no external packages.
 
-Compatible with **September 2024**, **May 2025**, and later versions of PBI Desktop.
+Works with **Power BI Desktop for Report Server** (recommended) and regular
+PBI Desktop — September 2024, May 2025, and later releases.
 
 ---
 
@@ -20,7 +21,10 @@ change — even 1 byte — causes `MashupValidationError` on open.
 **The solution**:
 1. Strip `SecurityBindings` from the PBIX
 2. Inject the modified `Report/Layout` with new visuals
-3. Open in regular PBI Desktop → **File → Save** regenerates `SecurityBindings`
+3. Open in Power BI Desktop for Report Server (or regular Desktop) → **File → Save** regenerates `SecurityBindings`
+
+Everything else in the file (`DataModel`, `Version`, settings) is copied
+byte-for-byte, so a file saved by PBRS Desktop stays a PBRS Desktop file.
 
 ---
 
@@ -29,12 +33,26 @@ change — even 1 byte — causes `MashupValidationError` on open.
 | Tool | Version | Notes |
 |---|---|---|
 | Python | 3.8+ | No pip installs — standard library only |
-| Regular PBI Desktop | Match your PBRS version | Opens result and regenerates SecurityBindings |
-| PBRS Desktop | Any | To verify and deploy final file |
+| Power BI Desktop for Report Server | Same release as your Report Server | **Recommended.** Prepares the input, opens the result, regenerates SecurityBindings |
+| Regular PBI Desktop | Same monthly release as PBRS Desktop | Optional alternative |
 
-> **Important**: use the **same monthly release** for both regular Desktop and
-> PBRS Desktop (e.g. both September 2024 or both May 2025). Mismatched versions
-> can cause "unrecognized version" errors.
+> **Recommended: do everything in Power BI Desktop for Report Server.** A file
+> saved there always matches your server. If you use regular Desktop, it must be
+> the **same monthly release** as your PBRS Desktop (e.g. both September 2024 or
+> both May 2025), or the server shows "unrecognized version".
+
+### Visual types to check on Report Server
+
+PBRS Desktop has no preview features and ships a few releases a year, so some
+newer visuals may be missing from your release. `build.py` prints a
+**PBRS Desktop compatibility warning** when you use one of these:
+
+| Visual | Safer choice |
+|---|---|
+| `map` / `azure_map` (Azure Maps) | `table` or `bar` |
+| `new_card`, `modern_card` | `card` or `multi_row_card` |
+| `text_slicer`, `list_slicer`, `advanced_slicer` | `slicer` |
+| `page_navigator` | `button` |
 
 ---
 
@@ -46,14 +64,18 @@ No packages to install. Just clone and run. **No PowerShell needed — works wit
 git clone https://github.com/shankarece/vizbuilder.git
 cd vizbuilder
 
-REM Build and auto-open in Power BI Desktop
+REM Build and auto-open (uses Power BI Desktop for Report Server when installed)
 build.bat MyReport.pbix MyReport-WithVisuals.pbix --open
+
+REM Force a specific Desktop edition
+build.bat MyReport.pbix MyReport-WithVisuals.pbix --open --rs
+build.bat MyReport.pbix MyReport-WithVisuals.pbix --open --regular
 
 REM Or without auto-open
 python build.py MyReport.pbix MyReport-WithVisuals.pbix
 ```
 
-### Install Windsurf / Claude Code skill (optional)
+### Install Windsurf / Claude Code skills (optional)
 
 ```cmd
 python install_skill.py
@@ -73,8 +95,11 @@ Then use natural language prompts in Windsurf to create visuals.
 | `layout_builder.py` | Layout read/write engine and query builders | No |
 | `visual_types.py` | 32 visual types, data roles, aliases (ported from pbi-cli) | No |
 | `pbix_patch.py` | PBIX zip manipulation | No |
-| `install_skill.py` | Install Claude Code / Windsurf skill | Run once |
-| `skill/SKILL.md` | Claude Code skill definition | No |
+| `desktop.py` | Finds/opens Power BI Desktop (Report Server edition first) for `--open` | No |
+| `install_skill.py` | Install / list / uninstall Claude Code / Windsurf skills | Run once |
+| `skills/*/SKILL.md` | 8 task-focused Claude Code skills | No |
+| `tests/test_skills.py` | Skill frontmatter, trigger, and installer tests | No |
+| `tests/test_pbrs.py` | PBRS Desktop compatibility tests (synthetic PBIX build) | No |
 | `requirements.txt` | Dependency list (empty — stdlib only) | No |
 
 ---
@@ -83,7 +108,7 @@ Then use natural language prompts in Windsurf to create visuals.
 
 ### Step 1 — Prepare the PBIX
 
-Open your `.pbix` in **regular PBI Desktop**, load your data, and **File → Save**.
+Open your `.pbix` in **Power BI Desktop for Report Server**, load your data, and **File → Save**.
 This ensures the data model is populated before we add visuals.
 
 ### Step 2 — Configure your visuals
@@ -132,7 +157,8 @@ Step 2/2  Patching PBIX...
 
   Done!
   Next steps:
-  1. Open the output PBIX in regular PBI Desktop
+  1. Open the output PBIX in Power BI Desktop for Report Server
+     (or regular Desktop from the same monthly release)
   2. Verify visuals look correct
   3. File -> Save  (regenerates SecurityBindings)
   4. Deploy to Power BI Report Server
@@ -141,7 +167,7 @@ Step 2/2  Patching PBIX...
 
 ### Step 4 — Save and deploy
 
-Open `MyReport-WithVisuals.pbix` in **regular PBI Desktop** → verify visuals →
+Open `MyReport-WithVisuals.pbix` in **Power BI Desktop for Report Server** → verify visuals →
 **File → Save** → deploy the saved file to Report Server.
 
 ---
@@ -300,27 +326,72 @@ independent `vid` numbering.
 
 ## Windsurf / Claude Code Integration
 
-vizbuilder includes a Claude Code skill so you can create visuals using
-natural language prompts in Windsurf or Claude Code.
+vizbuilder ships a set of task-focused Claude Code skills (same structure
+as [pbi-cli](https://github.com/MinaSaad1/pbi-cli)'s skills), so Windsurf or
+Claude Code loads only the guidance relevant to your prompt.
 
-### Install the skill
+| Skill | Use it for |
+|---|---|
+| `vizbuilder-modeling` | Handoff to a live-connection tool (pbi-cli / a Power BI-Fabric MCP) to build the data model first |
+| `vizbuilder-report` | End-to-end build workflow, PBIX format, SecurityBindings |
+| `vizbuilder-visuals` | Adding visuals, visual types, `Table[Column]` bindings |
+| `vizbuilder-pages` | Multi-page dashboards, tabs, page titles, layout patterns |
+| `vizbuilder-layout` | Linting and auto-fixing alignment, overlap, sizing |
+| `vizbuilder-analysis` | Metadata, data lineage, orphaned fields, consistency checks |
+| `vizbuilder-docs` | Data dictionary, measure catalog, HTML audit report |
+| `vizbuilder-deployment` | PBRS compatibility validation, deployment checklist |
+| `vizbuilder-diagnostics` | Errors and troubleshooting |
+
+### Install the skills
 
 ```bash
-python install_skill.py
+python install_skill.py                                  # install / update all
+python install_skill.py list                             # show install status
+python install_skill.py install --skill vizbuilder-visuals
+python install_skill.py uninstall                        # remove all
 ```
 
-This copies the skill to `~/.claude/skills/vizbuilder/` and updates `CLAUDE.md`.
+Each skill is copied to `~/.claude/skills/<name>/SKILL.md`, and a
+marker-delimited block listing the skills is added to `~/.claude/CLAUDE.md`
+(removed again by `uninstall`). Installing also removes the old single
+`~/.claude/skills/vizbuilder/` skill and its `CLAUDE.md` entry.
 Restart Windsurf after installing.
 
 ### Using prompts
 
 After installing, just describe what you want:
 
-- *"Add a bar chart showing Sales by Region"*
-- *"Create a dashboard with a column chart, donut chart, and KPI card"*
-- *"Add a combo chart with Revenue columns and Profit line"*
+- *"Add a bar chart showing Sales by Region"* → `vizbuilder-visuals`
+- *"Add a Loan Portfolio tab to the dashboard"* → `vizbuilder-pages`
+- *"Fix the alignment issues in my dashboard"* → `vizbuilder-layout`
+- *"Find unused columns in this PBIX"* → `vizbuilder-analysis`
+- *"Is this file ready for Report Server?"* → `vizbuilder-deployment`
+- *"Build the data model with a live connection, then add the visuals"* → `vizbuilder-modeling`
 
-The AI will edit `visuals_config.py` and run `build.py` for you.
+The AI will edit `visuals_config.py` and run `build.py` / `lint.py` / `analyze.py` for you.
+
+### Data model vs. report layer
+
+vizbuilder only builds the **report layer** (pages, visuals, bindings) — it
+never touches the `DataModel` entry inside the `.pbix`, since that's a
+compressed Analysis Services binary, not JSON. Creating tables, relationships,
+and measures needs a **live connection** to Power BI Desktop (via
+[pbi-cli](https://github.com/MinaSaad1/pbi-cli) or a Power BI/Fabric MCP
+server), which is a different tool with different requirements (Desktop
+running, `pythonnet`, Windows) than vizbuilder's offline, dependency-free
+design.
+
+For an agent to build a full dashboard end to end — data model included —
+pair vizbuilder with a live-connection tool: build the model first (live),
+close the connection, then run vizbuilder offline against the same file to
+add the report. See `vizbuilder-modeling` for the exact handoff.
+
+### Testing the skills
+
+```bash
+python -m unittest discover tests           # frontmatter, triggers, installer
+python tests/test_skills.py --triggers      # print prompt -> skill table
+```
 
 ---
 
@@ -328,9 +399,9 @@ The AI will edit `visuals_config.py` and run `build.py` for you.
 
 ```
 PBRS .pbix
-  └─► regular Desktop: Get Data → load → File→Save → Close
+  └─► PBRS Desktop: Get Data → load → File→Save → Close
   └─► python build.py input.pbix output.pbix
-  └─► regular Desktop: open output → verify → File→Save
+  └─► PBRS Desktop: open output → verify → File→Save
   └─► deploy .pbix to Power BI Report Server
 ```
 
@@ -342,5 +413,7 @@ PBRS .pbix
 |---|---|---|
 | `MashupValidationError` | SecurityBindings not removed | Ensure you're opening the *output* file, not the input |
 | Visuals show "Can't display visual" | Table or column name mismatch | Check `TABLE` in `visuals_config.py` matches data model exactly |
-| "Unrecognized version" on PBRS | Version mismatch between Desktop versions | Use same monthly release for regular and PBRS Desktop |
+| "Unrecognized version" on PBRS | File last saved by a newer regular Desktop | Open and save in Power BI Desktop for Report Server (or regular Desktop from the same month) |
+| Visual blank or "not supported" in PBRS Desktop | Visual type newer than your PBRS release | Use the safer choice from the build warning (e.g. `slicer`, `card`) |
+| `--open` opens the wrong Desktop | Both editions installed | Add `--rs` or `--regular`, or set `PBI_DESKTOP_PATH` |
 | `FileNotFoundError` on input | Wrong path | Use full absolute path or run from the same folder as the PBIX |
