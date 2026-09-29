@@ -82,12 +82,21 @@ If any visual may be missing from PBRS Desktop (e.g. Azure Map, new card,
 text/list/button slicers), the build prints a
 **PBRS Desktop compatibility warning** with a safer alternative.
 
+Build with a config kept elsewhere, and check which release is installed:
+
+```cmd
+build.bat input.pbix output.pbix --config C:\work\<your-config>.py
+python build.py --version
+```
+
 Never overwrite the input file — always write to a new output path.
 
 ## Rules (Don't Break These)
 
-1. **Edit only `visuals_config.py`** — never create a new config file and never
-   edit the engine files.
+1. **Edit only the dashboard definition** — `visuals_config.py`, or the user's
+   own file passed with `--config <path>` (preferred for teams: it lives outside
+   the tool folder, so upgrading vizbuilder never overwrites it). Never edit the
+   engine files.
 2. **Prepare the input first** — the input `.pbix` must already have its data
    loaded and saved in Desktop so the tables/columns you bind to exist. If
    there's no data model yet, build it with a live-connection tool first

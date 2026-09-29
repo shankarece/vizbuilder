@@ -34,8 +34,10 @@ python analyze.py output.pbix --output analysis\
 
 ## Rules
 
-1. **Edit only `visuals_config.py`** to define visuals. Do not edit engine files
-   unless asked to fix a bug.
+1. **Edit only the dashboard definition** (`visuals_config.py`, or the file the
+   user passes with `build.py --config`). Do not edit engine files unless asked
+   to fix a bug. Users keep their own config outside the tool folder so an
+   upgrade never overwrites it: `build.bat in.pbix out.pbix --config <path>`.
 2. **Never overwrite the input `.pbix`.** Always build to a new output path.
 3. **Work on a local copy** of the `.pbix` (for example `C:\work\`), not a
    OneDrive or network path, and not while another process is syncing it.

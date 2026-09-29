@@ -18,6 +18,9 @@ diff view. Delete this file once you're done reviewing.
 | `skills/vizbuilder-deployment/SKILL.md` | PBRS validation, deploy steps, release checklist. |
 | `skills/vizbuilder-diagnostics/SKILL.md` | Common errors → cause → fix. |
 | `skills/vizbuilder-modeling/SKILL.md` | Handoff to a live-connection tool (pbi-cli / a Power BI Modeling MCP) to build the data model, since vizbuilder can't. Covers installing pbi-cli, which of its skills to avoid on a `.pbix`, the Report Server Desktop connection caveat, and "save before you build". |
+| `make_release.py` | Builds one versioned zip (`dist/vizbuilder-<version>.zip` + `.sha256`) to hand to colleagues. Runs the tests first and refuses to package if they fail. |
+| `VERSION`, `CHANGELOG.md` | Release number (shown by `python build.py --version` and in the build banner) and what changed. |
+| `tests/test_release.py` | Checks the zip's contents, its checksum, that failing tests block a release, `--config`/`--version`, and unpacks the finished zip elsewhere to run *its own* tests. |
 | `AGENTS.md` | Instructions an AI agent (Devin, Windsurf, Claude Code) reads on opening the folder: where the skills are, the commands, and the rules (model first then save, never overwrite the input, no pbi-cli report commands on a `.pbix`, the `Sum()` limitation). |
 | `tests/test_skills.py` | Validates skill frontmatter, checks every visual alias is documented, runs 24 sample prompts through a keyword-matcher to confirm the right skill wins, round-trips `install_skill.py`. |
 | `tests/test_pbrs.py` | Builds a fake PBRS-style `.pbix`, runs the real build pipeline on it, checks the output is safe to open (SecurityBindings gone, everything else byte-identical, valid UTF-16 layout), checks the compatibility warnings fire, checks Desktop-edition selection. |
@@ -26,13 +29,13 @@ diff view. Delete this file once you're done reviewing.
 | `tests/test_pbix_patch.py` | Tests the code that strips `SecurityBindings` and swaps in the new layout inside the `.pbix` zip. |
 | `tests/test_consistency_checker.py` | Tests the design-quality checks (missing titles, inconsistent sizing, misalignment, etc.). |
 
-**Total: 88 automated tests, all passing**, run with `python -m unittest discover tests`.
+**Total: 101 automated tests, all passing**, run with `python -m unittest discover tests`.
 
 ## Modified files
 
 - **`README.md`** — new "Windsurf / Claude Code Integration" section listing all 9 skills; new "Data model vs. report layer" section explaining what vizbuilder can't do; PBRS Desktop is now the recommended edition throughout; new troubleshooting rows.
 - **`install_skill.py`** — also has `install --with-pbi-cli`, which runs pbi-cli's own installer for its five model-side skills only (never its report-layer ones, which write a different file format), and adds a warning line to the CLAUDE.md block so an agent doesn't use pbi-cli's report commands on a `.pbix`. Rewritten. Old version copied one file and had no way to remove it. New version: `list` / `install [--skill X] [--force]` / `uninstall`, writes a marker-delimited block to `~/.claude/CLAUDE.md`, and automatically removes the old single `vizbuilder` skill if it finds one. Plain `python install_skill.py` still works exactly as before (installs everything).
-- **`build.py`** — now refuses to overwrite its own input file; uses `desktop.py` for `--open` instead of a hardcoded regular-Desktop-only path; prints a warning if you used a visual type that might not exist in Report Server Desktop.
+- **`build.py`** — new `--config <file>` (keep your dashboard definition outside the tool folder so upgrades never overwrite it) and `--version`; now refuses to overwrite its own input file; uses `desktop.py` for `--open` instead of a hardcoded regular-Desktop-only path; prints a warning if you used a visual type that might not exist in Report Server Desktop.
 - **`lint.py`** — `--open` now goes through `desktop.py` too (previously called `os.startfile` directly, which only ever opens whatever Windows has associated with `.pbix`).
 - **`layout_builder.py`** — added a function that scans a built layout and lists any visuals that might not be supported in Report Server Desktop.
 - **`visual_types.py`** — added the list of visual types that might not exist in Report Server Desktop, with a safer alternative for each (used by both `build.py` and `pbrs_validator.py`, so they never disagree).
@@ -48,7 +51,7 @@ Since you can't use the diff view, the simplest approach:
 1. Download the branch zip (as before — branch dropdown → `claude/vizbuilder-pbi-cli-update-h3yn6y` → Code → Download ZIP).
 2. Read this file.
 3. Open any specific file above directly (double-click it) if you want to see its actual contents — you don't need to compare it against the old version to understand what it does now.
-4. Run `python -m unittest discover tests` to confirm all 88 tests still pass on your machine.
+4. Run `python -m unittest discover tests` to confirm all 101 tests still pass on your machine.
 
 ## Known limitation (unchanged by this PR)
 

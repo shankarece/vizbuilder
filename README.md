@@ -95,6 +95,8 @@ Then use natural language prompts in Windsurf to create visuals.
 | `layout_builder.py` | Layout read/write engine and query builders | No |
 | `visual_types.py` | 32 visual types, data roles, aliases (ported from pbi-cli) | No |
 | `pbix_patch.py` | PBIX zip manipulation | No |
+| `make_release.py` | Builds one versioned zip to share with colleagues | Maintainers |
+| `VERSION`, `CHANGELOG.md` | Release number and what changed | Bump on release |
 | `desktop.py` | Finds/opens Power BI Desktop (Report Server edition first) for `--open` | No |
 | `install_skill.py` | Install / list / uninstall Claude Code / Windsurf skills | Run once |
 | `skills/*/SKILL.md` | 8 task-focused Claude Code skills | No |
@@ -414,6 +416,49 @@ pbi-cli is a separate MIT-licensed project; it is installed, not bundled.
 python -m unittest discover tests           # frontmatter, triggers, installer
 python tests/test_skills.py --triggers      # print prompt -> skill table
 ```
+
+---
+
+## Sharing vizbuilder with colleagues (one zip)
+
+Maintainers build a single versioned package:
+
+```cmd
+python make_release.py                 REM runs the tests, then dist\vizbuilder-0.1.0.zip + .sha256
+python make_release.py --out D:\share  REM write it somewhere else
+python make_release.py --skip-tests    REM package without running the tests
+```
+
+Send the `.zip` (and the `.sha256` beside it). It unpacks to one folder,
+`vizbuilder-<version>\`, and contains the scripts, `.bat` launchers, the agent
+skills, `AGENTS.md`, the tests and the docs. It leaves out working notes,
+`.pbix` files and caches. The package is checked by a test that unpacks it and
+runs *its own* test suite.
+
+**Colleagues need only Python 3.8+.** After unzipping:
+
+```cmd
+python -m unittest discover tests      REM optional self-check
+python build.py --version              REM which release do I have?
+python install_skill.py                REM optional: agent skills for Windsurf / Claude Code / Devin
+```
+
+**Keep your dashboard definition outside the tool folder**, so upgrading never
+overwrites it. Copy `visuals_config.py` to a folder of your own once and point
+the build at it:
+
+```cmd
+copy vizbuilder-0.1.0\visuals_config.py C:\work\dashboard_sales.py
+build.bat MyReport.pbix MyReport-Out.pbix --config C:\work\dashboard_sales.py --open
+```
+
+**Upgrading** is: unzip the new version next to the old one and use it. There
+is nothing to migrate (configs live elsewhere); re-run `python install_skill.py`
+to refresh the skills. Check the download against the `.sha256` file with
+`certutil -hashfile vizbuilder-0.1.0.zip SHA256`.
+
+**Releasing a new version:** bump `VERSION`, add a `CHANGELOG.md` entry, run
+`python make_release.py`.
 
 ---
 
