@@ -271,6 +271,7 @@ class InstallerTest(unittest.TestCase):
         content = self._claude_md()
         self.assertIn("never use pbi-cli's report-layer", content)
         self.assertIn("PBIR", content)
+        self.assertIn("pbir-cli", content)
 
     def test_migrates_legacy_install_and_keeps_user_content(self):
         legacy = os.path.join(install_skill.SKILLS_TARGET_DIR, "vizbuilder")

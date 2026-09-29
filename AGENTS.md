@@ -49,9 +49,11 @@ python analyze.py output.pbix --output analysis\
    (or the Desktop Data pane). Table and column names must match exactly.
 6. **Known limitation:** value fields are always written as `Sum(column)`, so
    bind raw numeric columns. Real DAX measures cannot be bound yet.
-7. **Never use pbi-cli's report-layer commands or skills on a `.pbix`**
-   (`pbi report`, `visual`, `filters`, `bookmarks`, `format`). They write PBIR,
-   not the `.pbix` format Report Server uses. pbi-cli is for the data model only.
+7. **Never use PBIR-based report tooling on a `.pbix`**: pbi-cli's report-layer
+   commands and skills (`pbi report`, `visual`, `filters`, `bookmarks`, `format`),
+   `pbir-cli`, and data-goblin's `reports` / `create-pbi-report` skills. They
+   write PBIR, not the `.pbix` format Report Server uses. Those tools are for the
+   data model only (see `vizbuilder-modeling`).
 8. **Prefer PBRS-safe visuals.** If `build.py` prints a "PBRS Desktop
    compatibility warning", use the suggested alternative unless told otherwise.
 9. A built file has no `SecurityBindings`. It must be opened in Power BI

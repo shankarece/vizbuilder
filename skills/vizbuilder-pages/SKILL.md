@@ -132,6 +132,11 @@ def build_pages():
     ]
 ```
 
+For design judgment (visual hierarchy, spacing, KPI/card design, chart choice,
+accessibility) read the `pbi-report-design` skill in
+`github.com/data-goblin/power-bi-agentic-development`. Apply its principles, but
+ignore its `pbir` commands: they write PBIR, not a `.pbix`.
+
 Reference repos for layout inspiration:
 
 - `github.com/pkanphade/Banking-Analysis-PowerBI-Dashboard`

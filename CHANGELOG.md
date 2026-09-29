@@ -3,6 +3,15 @@
 Version number lives in `VERSION`. `python build.py --version` prints it, and the
 build banner shows it, so colleagues can say which release they have.
 
+## 0.1.1
+
+- `vizbuilder-modeling`: which data-goblin/power-bi-agentic-development plugins
+  are safe to use with vizbuilder (model-side only) and why its `reports`
+  plugin must stay out of any environment that builds `.pbix` for Report Server
+  (it writes PBIR). GPL-3.0 and weekly-release caveats noted.
+- Agents are now told never to use any PBIR-based report tooling (pbi-cli report
+  commands, `pbir-cli`, `create-pbi-report`) on a `.pbix`.
+
 ## 0.1.0
 
 First packaged release.

@@ -151,6 +151,33 @@ After the model phase, always **File -> Save** in Desktop first. Live changes
 saved; `build.py` copies the model from the file on disk, so an unsaved model
 is silently missing from the output.
 
+## More Model-Layer Help: data-goblin/power-bi-agentic-development
+
+[power-bi-agentic-development](https://github.com/data-goblin/power-bi-agentic-development)
+is a large marketplace of Claude Code / Copilot CLI plugins. It is **GPL-3.0**
+and releases weekly (its README warns versions 26.26-26.38 are a breaking
+transition and to pin 26.25 or earlier for a stable layout). Install it as
+separate plugins; never copy its files into this repo.
+
+| Plugin | Use with vizbuilder? |
+|---|---|
+| `semantic-models` (model design/review, DAX optimization, Power Query, naming) | **Yes** - model phase |
+| `tabular-editor` (BPA rules, C# scripts, `te` CLI) | **Yes** - model phase |
+| `pbi-desktop` (`connect-pbid`: TOM/ADOMD via PowerShell, no MCP needed) | **Yes** - model phase |
+| `reports` (`create-pbi-report`, `pbir-cli`, `review-report`, theme JSON) | **No** - writes PBIR, not `.pbix` |
+| `pbip` (`pbir-format`, `tmdl`) | `tmdl` only; `pbir-format` states it does not support legacy report layouts |
+| `paginated-reports`, `fabric-cli`, `fabric-admin`, `etl`, `custom-visuals` | Not for building a Report Server `.pbix` |
+
+Install only the plugins marked Yes, for example
+`claude plugin install semantic-models@power-bi-agentic-development`. If the
+`reports` plugin is installed next to vizbuilder, an agent asked to "create an
+executive dashboard" can route to its PBIR workflow and produce the wrong file
+format - so leave it out of any environment that builds `.pbix` for Report Server.
+
+Its `pbi-report-design` skill (visual hierarchy, layout and spacing, KPI/card
+design, chart choice, accessibility) is a good read for design decisions; apply
+the principles, but build through vizbuilder, not its `pbir` commands.
+
 ## Full Agentic Workflow (One Prompt, Two Tools)
 
 ```text

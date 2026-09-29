@@ -85,7 +85,8 @@ CLAUDE_MD_SNIPPET = (
     "Critical: edit only visuals_config.py, then run build.py / build.bat.\n"
     "For a .pbix, never use pbi-cli's report-layer commands or skills (pbi report,\n"
     "visual, filters, bookmarks, format; power-bi-report/visuals/pages/themes/filters):\n"
-    "they write PBIR, not .pbix. pbi-cli is for the data model only.\n"
+    "they write PBIR, not .pbix. The same goes for pbir-cli and data-goblin's\n"
+    "reports / create-pbi-report skills. Use those tools for the data model only.\n"
     "Open the output in Desktop and File -> Save before deploying.\n"
     "<!-- vizbuilder:end -->\n"
 )

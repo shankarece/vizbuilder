@@ -424,7 +424,7 @@ python tests/test_skills.py --triggers      # print prompt -> skill table
 Maintainers build a single versioned package:
 
 ```cmd
-python make_release.py                 REM runs the tests, then dist\vizbuilder-0.1.0.zip + .sha256
+python make_release.py                 REM runs the tests, then dist\vizbuilder-<version>.zip + .sha256
 python make_release.py --out D:\share  REM write it somewhere else
 python make_release.py --skip-tests    REM package without running the tests
 ```
@@ -448,14 +448,14 @@ overwrites it. Copy `visuals_config.py` to a folder of your own once and point
 the build at it:
 
 ```cmd
-copy vizbuilder-0.1.0\visuals_config.py C:\work\dashboard_sales.py
+copy vizbuilder-<version>\visuals_config.py C:\work\dashboard_sales.py
 build.bat MyReport.pbix MyReport-Out.pbix --config C:\work\dashboard_sales.py --open
 ```
 
 **Upgrading** is: unzip the new version next to the old one and use it. There
 is nothing to migrate (configs live elsewhere); re-run `python install_skill.py`
 to refresh the skills. Check the download against the `.sha256` file with
-`certutil -hashfile vizbuilder-0.1.0.zip SHA256`.
+`certutil -hashfile vizbuilder-<version>.zip SHA256`.
 
 **Releasing a new version:** bump `VERSION`, add a `CHANGELOG.md` entry, run
 `python make_release.py`.
