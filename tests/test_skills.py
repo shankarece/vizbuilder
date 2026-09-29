@@ -153,6 +153,21 @@ class SkillFilesTest(unittest.TestCase):
                 with self.subTest(skill=name, ref=ref):
                     self.assertIn(ref, EXPECTED_SKILLS)
 
+    def test_agents_md_references_exist(self):
+        with open(os.path.join(REPO_DIR, "AGENTS.md"), encoding="utf-8") as f:
+            text = f.read()
+        for ref in set(re.findall(r"\bvizbuilder-[a-z]+\b", text)):
+            with self.subTest(skill=ref):
+                self.assertIn(ref, EXPECTED_SKILLS)
+        # every skill is listed so an agent knows where to look
+        for name in EXPECTED_SKILLS:
+            with self.subTest(listed=name):
+                self.assertIn(name, text)
+        for script in set(re.findall(r"\b([a-z_]+\.(?:py|bat))\b", text)):
+            with self.subTest(script=script):
+                self.assertTrue(os.path.isfile(os.path.join(REPO_DIR, script)),
+                                f"{script} referenced but not in repo")
+
     def test_visual_aliases_documented(self):
         from visual_types import VISUAL_TYPE_ALIASES
         with open(os.path.join(SKILLS_DIR, "vizbuilder-visuals", "SKILL.md"),

@@ -18,6 +18,7 @@ diff view. Delete this file once you're done reviewing.
 | `skills/vizbuilder-deployment/SKILL.md` | PBRS validation, deploy steps, release checklist. |
 | `skills/vizbuilder-diagnostics/SKILL.md` | Common errors → cause → fix. |
 | `skills/vizbuilder-modeling/SKILL.md` | Handoff to a live-connection tool (pbi-cli / a Power BI Modeling MCP) to build the data model, since vizbuilder can't. Covers installing pbi-cli, which of its skills to avoid on a `.pbix`, the Report Server Desktop connection caveat, and "save before you build". |
+| `AGENTS.md` | Instructions an AI agent (Devin, Windsurf, Claude Code) reads on opening the folder: where the skills are, the commands, and the rules (model first then save, never overwrite the input, no pbi-cli report commands on a `.pbix`, the `Sum()` limitation). |
 | `tests/test_skills.py` | Validates skill frontmatter, checks every visual alias is documented, runs 24 sample prompts through a keyword-matcher to confirm the right skill wins, round-trips `install_skill.py`. |
 | `tests/test_pbrs.py` | Builds a fake PBRS-style `.pbix`, runs the real build pipeline on it, checks the output is safe to open (SecurityBindings gone, everything else byte-identical, valid UTF-16 layout), checks the compatibility warnings fire, checks Desktop-edition selection. |
 | `tests/test_visual_types.py` | Tests alias resolution (`bar` → `barChart`, etc.) and that all the internal lookup tables agree with each other. |
@@ -25,7 +26,7 @@ diff view. Delete this file once you're done reviewing.
 | `tests/test_pbix_patch.py` | Tests the code that strips `SecurityBindings` and swaps in the new layout inside the `.pbix` zip. |
 | `tests/test_consistency_checker.py` | Tests the design-quality checks (missing titles, inconsistent sizing, misalignment, etc.). |
 
-**Total: 87 automated tests, all passing**, run with `python -m unittest discover tests`.
+**Total: 88 automated tests, all passing**, run with `python -m unittest discover tests`.
 
 ## Modified files
 
@@ -47,7 +48,7 @@ Since you can't use the diff view, the simplest approach:
 1. Download the branch zip (as before — branch dropdown → `claude/vizbuilder-pbi-cli-update-h3yn6y` → Code → Download ZIP).
 2. Read this file.
 3. Open any specific file above directly (double-click it) if you want to see its actual contents — you don't need to compare it against the old version to understand what it does now.
-4. Run `python -m unittest discover tests` to confirm all 87 tests still pass on your machine.
+4. Run `python -m unittest discover tests` to confirm all 88 tests still pass on your machine.
 
 ## Known limitation (unchanged by this PR)
 
