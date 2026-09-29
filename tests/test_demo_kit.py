@@ -17,6 +17,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import zipfile
 from unittest import mock
 
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -24,6 +25,7 @@ sys.path.insert(0, REPO_DIR)
 sys.path.insert(0, os.path.join(REPO_DIR, "tests"))
 
 import build as build_module  # noqa: E402
+import doctor  # noqa: E402
 import lint  # noqa: E402
 from layout_builder import read_layout  # noqa: E402
 from test_pbrs import make_pbix  # noqa: E402
@@ -192,6 +194,65 @@ class NorthwindCheckTest(unittest.TestCase):
         for _, vc, sv in self.built.containers():
             if "Y2" in sv.get("projections", {}):
                 self.assertIn("Aggregation", json.loads(vc["query"])["Select"][2])
+
+
+class SampleFilesTest(unittest.TestCase):
+    """The two made-up .pbix files that ship for the Desktop check."""
+
+    SAMPLE = os.path.join(DEMO_DIR, "verify", "northwind_sample.pbix")
+    CHECK = os.path.join(DEMO_DIR, "verify", "Northwind-check.pbix")
+
+    def _names(self, path):
+        with zipfile.ZipFile(path) as z:
+            return set(z.namelist())
+
+    def test_files_exist_and_are_small(self):
+        for path in (self.SAMPLE, self.CHECK):
+            with self.subTest(path=os.path.basename(path)):
+                self.assertTrue(os.path.isfile(path))
+                self.assertLess(os.path.getsize(path), 500_000)
+
+    def test_no_external_connections_or_scripts_inside(self):
+        """The demo promise: made-up data, nothing that reaches out."""
+        for path in (self.SAMPLE, self.CHECK):
+            names = self._names(path)
+            with self.subTest(path=os.path.basename(path)):
+                self.assertLessEqual(
+                    names, {"Version", "[Content_Types].xml", "DiagramLayout", "Settings",
+                            "Metadata", "Report/Layout", "DataModel"})
+                self.assertNotIn("DataMashup", names)
+
+    def test_doctor_finds_nothing_wrong_with_either(self):
+        for path in (self.SAMPLE, self.CHECK):
+            with self.subTest(path=os.path.basename(path)):
+                result = doctor.check_report_file(path)
+                self.assertNotIn(doctor.FAIL, [c.status for c in result])
+
+    def test_check_file_has_the_three_labelled_pages(self):
+        pages = [(p["displayName"], len(p["visualContainers"]))
+                 for p in read_layout(self.CHECK)["sections"]]
+        self.assertEqual(pages, [("1 Safe visuals", 10), ("2 Legend and combo", 7),
+                                 ("3 KPI gauge scatter", 7)])
+
+    def test_check_file_keeps_the_sample_data_model_untouched(self):
+        with zipfile.ZipFile(self.SAMPLE) as a, zipfile.ZipFile(self.CHECK) as b:
+            self.assertEqual(a.read("DataModel"), b.read("DataModel"))
+
+    def test_the_documented_rebuild_command_reproduces_the_check_file(self):
+        """VERIFY_IN_DESKTOP.md tells people they can rebuild it from the sample."""
+        tmp = tempfile.mkdtemp()
+        try:
+            rebuilt = os.path.join(tmp, "rebuilt.pbix")
+            with mock.patch.dict(sys.modules), contextlib.redirect_stdout(io.StringIO()):
+                build_module.build(self.SAMPLE, rebuilt,
+                                   config_path=os.path.join(DEMO_DIR, "northwind_check.py"))
+            def shape(path):
+                return [(p["displayName"], [json.loads(vc["config"])["singleVisual"]["visualType"]
+                                            for vc in p["visualContainers"]])
+                        for p in read_layout(path)["sections"]]
+            self.assertEqual(shape(rebuilt), shape(self.CHECK))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 class DocumentReferencesTest(unittest.TestCase):

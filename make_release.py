@@ -12,8 +12,9 @@ then run this). The zip unpacks to one folder, vizbuilder-<version>/, and a
 matching .sha256 file is written so the recipient can check the download.
 
 Only files a colleague needs are included: the scripts, .bat launchers,
-skills/, demo/, tests/ and the docs. Working notes, .pbix files, caches and git data
-are left out.
+skills/, demo/, tests/ and the docs. Working notes, caches and git data are left
+out, and so is every .pbix file except the two made-up samples in demo/verify/.
+.bat files are written with Windows line endings.
 """
 
 import hashlib
@@ -31,6 +32,8 @@ INCLUDED_FILES = {"VERSION"}
 INCLUDED_DIRS = ("skills", "tests", "demo")
 SKIPPED_PARTS = {"__pycache__", ".git", "dist"}
 SKIPPED_SUFFIXES = (".pyc", ".pyo", ".pbix", ".pbit", ".layout")
+# The only .pbix files that ship: made-up Northwind data for the Desktop check.
+ALLOWED_SAMPLES = ("demo/verify/northwind_sample.pbix", "demo/verify/Northwind-check.pbix")
 
 
 def read_version(repo_dir: str = REPO_DIR) -> str:
@@ -55,10 +58,10 @@ def collect_files(repo_dir: str = REPO_DIR) -> list:
         for root, dirs, names in os.walk(os.path.join(repo_dir, top)):
             dirs[:] = [d for d in dirs if d not in SKIPPED_PARTS]
             for name in names:
-                if name.endswith(SKIPPED_SUFFIXES):
+                rel = os.path.relpath(os.path.join(root, name), repo_dir).replace(os.sep, "/")
+                if name.endswith(SKIPPED_SUFFIXES) and rel not in ALLOWED_SAMPLES:
                     continue
-                rel = os.path.relpath(os.path.join(root, name), repo_dir)
-                files.append(rel.replace(os.sep, "/"))
+                files.append(rel)
     return sorted(files)
 
 
@@ -91,7 +94,13 @@ def build_release(out_dir: str = None, repo_dir: str = REPO_DIR,
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         for rel in collect_files(repo_dir):
-            z.write(os.path.join(repo_dir, *rel.split("/")), f"{root_name}/{rel}")
+            source = os.path.join(repo_dir, *rel.split("/"))
+            if rel.endswith(".bat"):
+                with open(source, "rb") as f:
+                    data = f.read().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+                z.writestr(f"{root_name}/{rel}", data)
+            else:
+                z.write(source, f"{root_name}/{rel}")
 
     digest = sha256_of(zip_path)
     with open(zip_path + ".sha256", "w", encoding="utf-8") as f:

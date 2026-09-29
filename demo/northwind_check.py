@@ -11,7 +11,7 @@ The point is to learn, on YOUR Desktop version, which visuals draw correctly:
   Page 3  KPI, gauge, scatter (A/B), waterfall and funnel.
 
 Build it:
-    build.bat demo\\northwind_sample.pbix Northwind-check.pbix --config demo\\northwind_check.py --open
+    build.bat demo\\verify\\northwind_sample.pbix Northwind-check.pbix --config demo\\northwind_check.py --open
 
 Then follow demo\\VERIFY_IN_DESKTOP.md and report what you see.
 """

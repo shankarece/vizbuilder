@@ -20,7 +20,7 @@ no extra packages, no PowerShell. Nothing is installed system-wide.
 | I am... | Read |
 |---|---|
 | A business user who wants a report built | `demo\USER_GUIDE.md`, then `demo\PROMPTS.md` |
-| Giving a demo to my lead | `demo\DEMO_SCRIPT.md` (and do `demo\VERIFY_IN_DESKTOP.md` first) |
+| Giving a demo to my lead | `demo\DEMO_SCRIPT.md` (and do `demo\VERIFY_IN_DESKTOP.md` first; its two sample files are in `demo\verify\`) |
 | A developer or administrator | `README.md`, `AGENTS.md`, `skills\` |
 | Having a problem | Run `doctor.bat`; then `skills\vizbuilder-diagnostics\SKILL.md` |
 | Sharing this with colleagues | `README.md`, section "Sharing vizbuilder with colleagues" |

@@ -60,11 +60,17 @@ class CollectFilesTest(unittest.TestCase):
         for path in self.files:
             with self.subTest(path=path):
                 self.assertNotIn("__pycache__", path)
-                self.assertFalse(path.endswith((".pyc", ".pbix", ".pbit")))
+                self.assertFalse(path.endswith((".pyc", ".pyo")))
                 self.assertFalse(path.startswith(("dist/", ".git")))
                 self.assertNotIn(path, make_release.EXCLUDED_FILES)
         self.assertNotIn("REVIEW_SUMMARY.md", self.files)
-        self.assertFalse([p for p in self.files if p.endswith(".pbix")])
+        stray = [p for p in self.files if p.endswith((".pbix", ".pbit"))
+                 and p not in make_release.ALLOWED_SAMPLES]
+        self.assertEqual(stray, [])
+
+    def test_ships_exactly_the_two_made_up_sample_files(self):
+        pbix = sorted(p for p in self.files if p.endswith(".pbix"))
+        self.assertEqual(pbix, sorted(make_release.ALLOWED_SAMPLES))
 
 
 class BuildReleaseTest(unittest.TestCase):
@@ -94,6 +100,24 @@ class BuildReleaseTest(unittest.TestCase):
         with open(zip_path, "rb") as f:
             self.assertEqual(recorded, hashlib.sha256(f.read()).hexdigest())
         self.assertEqual(name, os.path.basename(zip_path))
+
+    def test_bat_files_have_windows_line_endings_in_the_zip(self):
+        with zipfile.ZipFile(self._build()) as z:
+            bats = [n for n in z.namelist() if n.endswith(".bat")]
+            self.assertTrue(bats)
+            for name in bats:
+                data = z.read(name)
+                with self.subTest(name=name):
+                    self.assertIn(b"\r\n", data)
+                    self.assertNotIn(b"\n", data.replace(b"\r\n", b""))
+
+    def test_sample_files_are_inside_the_zip_and_intact(self):
+        with zipfile.ZipFile(self._build()) as z:
+            version = make_release.read_version()
+            for rel in make_release.ALLOWED_SAMPLES:
+                data = z.read(f"vizbuilder-{version}/{rel}")
+                with open(os.path.join(REPO_DIR, *rel.split("/")), "rb") as f:
+                    self.assertEqual(data, f.read(), rel)
 
     def test_failing_tests_block_the_release(self):
         failed = subprocess.CompletedProcess([], 1, "", "boom")

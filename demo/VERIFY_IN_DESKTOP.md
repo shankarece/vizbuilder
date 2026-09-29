@@ -5,14 +5,20 @@ its output in *your* Power BI Desktop for Report Server**. This check does that,
 in about five minutes, and tells us exactly what works on your version. Do it
 **before** any demo.
 
-You need two files (sent with this package):
+You need two files, both already in this package in the `demo\verify\` folder:
 
 | File | What it is |
 |---|---|
-| `northwind_sample.pbix` | A small sample report with made-up data, created by an open-source tool. Untouched. |
+| `northwind_sample.pbix` | A small sample report with made-up data, created by an open-source tool. Untouched. It has no external data connections. |
 | `Northwind-check.pbix` | The same sample after vizbuilder added 21 visuals across 3 pages. |
 
 Copy both to a plain local folder such as `C:\work\` (not OneDrive or a network drive).
+
+You can also rebuild the second file yourself in a second, from the first:
+
+```cmd
+build.bat demo\verify\northwind_sample.pbix C:\work\Northwind-check.pbix --config demo\northwind_check.py
+```
 
 ## Step 1 - Does your Desktop open the sample?
 

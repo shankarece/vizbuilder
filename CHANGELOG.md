@@ -3,6 +3,15 @@
 Version number lives in `VERSION`. `python build.py --version` prints it, and the
 build banner shows it, so colleagues can say which release they have.
 
+## 0.2.1
+
+- The two made-up sample files for the Desktop check now live in the repo
+  (`demo/verify/`) and ship in the release zip, so a plain GitHub download is
+  complete. Every other `.pbix` is still ignored by git and left out of releases.
+- `.bat` files use Windows line endings (`.gitattributes`, and in the release zip).
+- Tests: the released `.pbix` samples are checked (no external connections, data
+  model untouched, the documented rebuild command reproduces the check file).
+
 ## 0.2.0
 
 Office edition: everything needed to run, hand over and demonstrate vizbuilder on

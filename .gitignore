@@ -14,6 +14,9 @@ venv/
 # Power BI files — do not commit PBIX files with real data
 *.pbix
 *.pbit
+# ...except the two made-up sample files used to check Report Server Desktop
+!demo/verify/northwind_sample.pbix
+!demo/verify/Northwind-check.pbix
 
 # Temporary layout files
 *.layout
