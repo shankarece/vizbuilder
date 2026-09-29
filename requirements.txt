@@ -5,3 +5,4 @@
 # Requirements:
 #   - Python 3.8 or higher
 #   - Regular PBI Desktop (same monthly version as your PBRS Desktop)
+pbixray

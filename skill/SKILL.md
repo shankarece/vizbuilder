@@ -394,6 +394,22 @@ Flags:
 
 **Use when**: You want a complete 360° dashboard audit in one go.
 
+### Formatting audit and bulk restyle (`format_tools.py`)
+
+Find inconsistent fonts, off-palette colours and number formats in an existing
+PBIX, and restyle every visual to a theme. Original file is never modified.
+
+```cmd
+format.bat file.pbix --theme bank_theme.json            REM audit
+format.bat file.pbix --theme bank_theme.json --restyle  REM writes file-restyled.pbix
+```
+
+Theme JSON: `{"fontFamily": "Segoe UI", "palette": ["#E60012", "#333333"]}`.
+Restyle maps every hard-coded colour to the nearest palette colour and unifies
+fonts (keeps Bold/Light weights). Number formats are flagged, not auto-changed.
+Also runs as the last step of `analyze.py`. Model tables/columns/measures are
+read offline via `pbixray` (pip install pbixray).
+
 ## Layout Linter / Auditor
 
 Audit any PBIX file for layout issues and auto-fix them.

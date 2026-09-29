@@ -75,6 +75,39 @@ def _analyze_pbix_structure(pbix_path: str) -> dict:
 
 # ── Layout (Visuals) Extraction ──────────────────────────────────────────────
 
+def _legacy_bindings(sv: dict) -> list:
+    """Resolve legacy singleVisual.projections -> table/field via prototypeQuery."""
+    pq = sv.get("prototypeQuery", {}) or {}
+    alias = {f.get("Name"): f.get("Entity") for f in pq.get("From", [])}
+
+    def _resolve(item):
+        for kind in ("Column", "Measure", "HierarchyLevel"):
+            if kind in item:
+                node = item[kind]
+                expr = node.get("Expression", {})
+                if "SourceRef" in expr:
+                    src = expr["SourceRef"]
+                    return alias.get(src.get("Source"), src.get("Entity")), node.get("Property") or node.get("Level"), kind
+        if "Aggregation" in item:
+            return _resolve(item["Aggregation"].get("Expression", {}))
+        return None, None, None
+
+    by_name = {}
+    for item in pq.get("Select", []):
+        tbl, fld, kind = _resolve(item)
+        if tbl:
+            by_name[item.get("Name")] = (tbl, fld, kind)
+
+    out = []
+    for role, projs in (sv.get("projections") or {}).items():
+        for proj in projs:
+            ref = proj.get("queryRef", "")
+            tbl, fld, kind = by_name.get(ref, (None, None, None))
+            out.append({"role": role, "query_ref": ref, "table": tbl, "field": fld,
+                        "kind": (kind or "").lower()})
+    return out
+
+
 def _extract_layout_metadata(pbix_path: str) -> dict:
     """Extract visuals, pages, bindings from Report/Layout."""
     layout_meta = {
@@ -124,6 +157,10 @@ def _extract_layout_metadata(pbix_path: str) -> dict:
                                 "query_ref": proj.get("queryRef", ""),
                             })
 
+                    # Legacy PBIX (PBRS): projections + prototypeQuery
+                    if not bindings:
+                        bindings = _legacy_bindings(sv)
+
                     # Check for title
                     vc_objs = sv.get("vcObjects", {})
                     has_title = False
@@ -167,6 +204,44 @@ def _extract_layout_metadata(pbix_path: str) -> dict:
 
 
 # ── DataModel Metadata (Table/Column/Measure) ────────────────────────────────
+
+def _fill_from_pbixray(pbix_path: str, meta: dict) -> None:
+    """Read the compressed DataModel offline via PBIXRay (optional dependency)."""
+    try:
+        from pbixray import PBIXRay
+    except ImportError:
+        meta["notes"] = "Install pbixray (pip install pbixray) to read tables/columns/measures"
+        return
+    try:
+        m = PBIXRay(pbix_path)
+        tables = {}
+        for r in m.schema.itertuples():
+            t = tables.setdefault(r.TableName, {"name": r.TableName, "columns": [],
+                                                "measures": [], "hidden": False})
+            t["columns"].append({"name": r.ColumnName, "type": str(r.PandasDataType),
+                                 "hidden": False, "expression": ""})
+        for r in m.dax_columns.itertuples():
+            for c in tables.get(r.TableName, {}).get("columns", []):
+                if c["name"] == r.ColumnName:
+                    c["expression"] = r.Expression or ""
+        for r in m.dax_measures.itertuples():
+            t = tables.setdefault(r.TableName, {"name": r.TableName, "columns": [],
+                                                "measures": [], "hidden": False})
+            t["measures"].append({"name": r.Name, "expression": r.Expression or "",
+                                  "format_string": "", "hidden": False})
+        meta["tables"] = list(tables.values())
+        for rel in m.relationships.itertuples():
+            meta["relationships"].append({
+                "from_table": rel.FromTableName, "from_column": rel.FromColumnName,
+                "to_table": rel.ToTableName, "to_column": rel.ToColumnName,
+                "cardinality": rel.Cardinality,
+                "cross_filter": str(rel.CrossFilteringBehavior).lower()})
+        meta["total_columns"] = sum(len(t["columns"]) for t in meta["tables"])
+        meta["total_measures"] = sum(len(t["measures"]) for t in meta["tables"])
+        meta["notes"] = "DataModel read offline via PBIXRay"
+    except Exception as e:
+        meta["notes"] = f"PBIXRay could not read DataModel: {e}"
+
 
 def _extract_datamodel_metadata(pbix_path: str) -> dict:
     """Extract table, column, measure metadata from DataModel."""
@@ -240,6 +315,9 @@ def _extract_datamodel_metadata(pbix_path: str) -> dict:
 
                 except Exception as e:
                     print(f"  Note: Metadata.json parsing: {e}")
+
+            if not datamodel_meta["tables"]:
+                _fill_from_pbixray(pbix_path, datamodel_meta)
 
             datamodel_meta["total_tables"] = len(datamodel_meta["tables"])
 

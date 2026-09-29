@@ -24,6 +24,7 @@ from consistency_checker import check_consistency
 from metadata_extractor import extract_metadata
 from generate_docs import generate_report
 from pbrs_validator import validate_pbrs_compatibility
+from format_tools import run as format_audit
 
 
 def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
@@ -106,6 +107,10 @@ def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
     results["pbrs_validation"] = pbrs_result
     print(f"[OK] PBRS validation complete: {pbrs_validation_file}")
 
+    # Formatting audit (fonts, colours, number formats)
+    print("\nFormatting audit...")
+    results["formatting"] = format_audit(pbix_path, report_path=os.path.join(output_dir, f"{pbix_name}_formatting.json"))
+
     return results
 
 
@@ -122,13 +127,15 @@ def main():
     metadata_only = "--metadata-only" in flags
     lineage_only = "--lineage-only" in flags
 
-    # Parse --output flag
-    if "--output" in flags:
-        idx = flags.index("--output")
-        if idx + 1 < len(flags) and not flags[idx + 1].startswith("--"):
-            output_dir = flags[idx + 1]
+    # Parse --output flag (value is a non-flag arg, so read from raw argv)
+    if "--output" in sys.argv:
+        idx = sys.argv.index("--output")
+        if idx + 1 < len(sys.argv) and not sys.argv[idx + 1].startswith("--"):
+            output_dir = sys.argv[idx + 1]
         else:
             output_dir = "./pbix_analysis"
+    if output_dir in args:
+        args.remove(output_dir)
 
     print("=" * 60)
     print("  PBIX Analyzer Suite")
