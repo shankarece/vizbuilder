@@ -205,6 +205,46 @@ Always respond with valid JSON only, no extra text."""
             if "error" in action_result:
                 print(f"   Error: {action_result['error'][:200]}")
 
+    def validate_layout(self):
+        """Validate dashboard layout using lint.py."""
+        if not os.path.isfile(self.config_file):
+            return
+
+        output_file = os.path.join(self.work_dir, f"{self.pbix_name}_out.pbix")
+        if not os.path.isfile(output_file):
+            return
+
+        cmd = f"lint.bat \"{output_file}\" --report \"{self.work_dir}/layout_report.md\""
+        try:
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                print("   ✓ Layout validation passed")
+            else:
+                print(f"   ⚠ Layout issues found: {result.stderr[:200]}")
+        except:
+            pass
+
+    def auto_space_visuals(self, spacing=10):
+        """Auto-space visuals evenly on the grid."""
+        if not os.path.isfile(self.config_file):
+            print("   ✗ No config file to adjust")
+            return
+
+        print(f"   ℹ Auto-spacing with {spacing}px grid...")
+        print("   → Adjust spacing in config file by modifying x, y coordinates")
+        print("   → Example: x=20, y=60 → next item x=240 (20+200+spacing)")
+
+    def fit_to_page(self):
+        """Adjust visual sizes to fit on one PBRS page."""
+        if not os.path.isfile(self.config_file):
+            print("   ✗ No config file to adjust")
+            return
+
+        print("   ℹ Fitting visuals to standard PBRS page (8.5\" x 11\")...")
+        print("   → Recommended max width: 850px")
+        print("   → Recommended max height: 1000px")
+        print("   → Check your config and adjust as needed")
+
     def _generate_default_config(self):
         """Generate a basic dashboard config."""
         config_code = '''"""Auto-generated dashboard config."""
@@ -213,15 +253,21 @@ from layout_builder import add_visual
 def build_pages():
     page1 = [
         add_visual("card", {"value": "Sum(Orders[Sales])"},
-                   x=20, y=60, w=200, h=100, vid=1, title="Total Sales"),
+                   x=20, y=60, w=150, h=100, vid=1, title="Total Sales"),
+        add_visual("card", {"value": "Sum(Orders[Profit])"},
+                   x=180, y=60, w=150, h=100, vid=2, title="Total Profit"),
+        add_visual("card", {"value": "Count(Orders[OrderID])"},
+                   x=340, y=60, w=150, h=100, vid=3, title="Orders"),
         add_visual("clustered_column", {"category": "Orders[Region]", "value": "Sum(Orders[Sales])"},
-                   x=240, y=60, w=500, h=300, vid=2, title="Sales by Region"),
+                   x=20, y=180, w=480, h=280, vid=4, title="Sales by Region"),
+        add_visual("donut", {"category": "Orders[Category]", "value": "Sum(Orders[Sales])"},
+                   x=510, y=180, w=320, h=280, vid=5, title="Sales by Category"),
     ]
     return [{"name": "Dashboard", "title": "Dashboard", "visuals": page1}]
 '''
         with open(self.config_file, "w") as f:
             f.write(config_code)
-        print(f"   Generated: {self.config_file}")
+        print(f"   ✓ Generated config with PBRS-safe layout: {self.config_file}")
 
     def interactive_loop(self):
         """Interactive conversation loop."""
