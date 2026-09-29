@@ -80,23 +80,76 @@ binary format. Splitting the two lets each one stay light for its layer
 instead of one tool needing both a zero-dependency mode and a live-connection
 mode.
 
-## If You Only Have pbi-cli (No MCP Server)
+## Using pbi-cli for the Model Phase
 
-pbi-cli's model skills are the reference shape for the model phase even
-without an MCP wrapper -- point the agent at its CLI directly:
+[pbi-cli](https://github.com/MinaSaad1/pbi-cli) (MIT) is the model-layer tool
+this repo pairs with. It needs Windows, Python 3.10+, `pythonnet`, and
+Power BI Desktop running -- so it is a **separate install**, never bundled
+into vizbuilder (which stays stdlib-only and runs anywhere).
 
-```bash
-pbi connect                                            # attach to running Desktop
-pbi table list                                          # confirm what already exists
-pbi measure create "Total Revenue" -e "SUM(Sales[Amount])" -t Sales
-pbi relationship list
+```cmd
+pipx install pbi-cli-tool
+python install_skill.py install --with-pbi-cli
 ```
 
-Then disconnect / close Desktop and switch to vizbuilder for the report, per
-the order above. Do not use pbi-cli's own `report`/`visual`/`pages` commands
-on a file vizbuilder manages -- those write PBIR (a folder format), not the
-legacy `Report/Layout` vizbuilder edits; the two report formats are not
-interchangeable on the same file.
+`--with-pbi-cli` installs only the **model-side** pbi-cli skills
+(`power-bi-modeling`, `power-bi-dax`, `power-bi-partitions`,
+`power-bi-security`, `power-bi-deployment`) by running
+`pbi-cli skills install --skill <name> --yes` for each. If `pbi-cli` is not on
+PATH it prints the commands instead of running them.
+
+### Do NOT use pbi-cli's report-layer commands on a `.pbix`
+
+`pbi report`, `pbi visual`, `pbi filters`, `pbi bookmarks`, `pbi format`,
+and the `power-bi-report` / `-visuals` / `-pages` / `-themes` / `-filters` /
+`-custom-visuals` skills write **PBIR** (a `.Report` folder used by `.pbip`
+projects), not the legacy `Report/Layout` inside a `.pbix`. Report Server
+works with `.pbix`, and mixing the two formats on one file corrupts it or
+does nothing. For a `.pbix`, all report work goes through vizbuilder. That
+also means themes, page/visual filters, bookmarks, and conditional
+formatting are not available for Report Server files -- set them in Desktop.
+
+### Model-phase commands
+
+```cmd
+pbi connect                                  REM attach to running Desktop
+pbi connect -d localhost:<port>              REM attach by port (see below)
+pbi table list
+pbi measure create "Total Revenue" -e "SUM(Sales[Amount])" -t Sales
+pbi relationship create ...                  REM see the power-bi-modeling skill
+pbi dax execute "EVALUATE ROW(""n"", COUNTROWS(Sales))"
+```
+
+Multi-line DAX (`VAR`/`RETURN`) cannot be passed with `-e`; use `--file`
+(see the power-bi-dax skill).
+
+### Power BI Desktop for Report Server
+
+`pbi connect` auto-detects a running Desktop by reading
+`msmdsrv.port.txt` under `AnalysisServicesWorkspaces`, but it only looks in the
+regular Desktop (MSI and Microsoft Store) folders. The Report Server edition
+keeps its workspace under its own folder, so auto-detect may report "not
+running". If so, find the port yourself and connect with `-d`:
+
+```cmd
+dir /s /b "%LOCALAPPDATA%\Microsoft\msmdsrv.port.txt"
+pbi connect -d localhost:<port>
+```
+
+(The file is UTF-16; open it in Notepad.) This has not been tested against a
+Report Server Desktop release here -- verify on your machine.
+
+### Alternative: the Power BI Modeling MCP
+
+If an agent already has a Power BI modeling MCP server attached (for example
+Microsoft's Power BI Modeling MCP), it does the same model phase without
+pbi-cli. Nothing else in this skill changes: build the model live, save,
+close Desktop, then run vizbuilder offline.
+
+After the model phase, always **File -> Save** in Desktop first. Live changes
+(new relationships, measures) exist only in the running Desktop session until
+saved; `build.py` copies the model from the file on disk, so an unsaved model
+is silently missing from the output.
 
 ## Full Agentic Workflow (One Prompt, Two Tools)
 

@@ -9,9 +9,11 @@ Run from the repo root (standard library only):
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_DIR)
@@ -212,6 +214,48 @@ class InstallerTest(unittest.TestCase):
 
     def test_unknown_skill_rejected(self):
         self.assertEqual(install_skill.main(["install", "--skill", "nope"]), 1)
+
+    def _completed(self, returncode=0, stdout="", stderr=""):
+        return subprocess.CompletedProcess([], returncode, stdout, stderr)
+
+    def test_with_pbi_cli_installs_only_model_side_skills(self):
+        with mock.patch("install_skill.shutil.which", return_value="pbi-cli"), \
+             mock.patch("install_skill.subprocess.run",
+                        return_value=self._completed()) as run:
+            self.assertEqual(install_skill.main(["install", "--with-pbi-cli"]), 0)
+        commands = [c.args[0] for c in run.call_args_list]
+        installed = [cmd[cmd.index("--skill") + 1] for cmd in commands]
+        self.assertEqual(installed, list(install_skill.PBI_CLI_MODEL_SKILLS))
+        for cmd in commands:
+            self.assertEqual(cmd[:3], ["pbi-cli", "skills", "install"])
+            self.assertIn("--yes", cmd)  # never block on pbi-cli's prompt
+        # report-layer skills write PBIR and must never be installed
+        for name in ("power-bi-report", "power-bi-visuals", "power-bi-pages",
+                     "power-bi-themes", "power-bi-filters", "power-bi-custom-visuals"):
+            self.assertNotIn(name, installed)
+
+    def test_with_pbi_cli_missing_is_not_an_error(self):
+        with mock.patch("install_skill.shutil.which", return_value=None), \
+             mock.patch("install_skill.subprocess.run") as run:
+            self.assertEqual(install_skill.main(["install", "--with-pbi-cli"]), 0)
+        run.assert_not_called()
+
+    def test_with_pbi_cli_failure_is_reported(self):
+        with mock.patch("install_skill.shutil.which", return_value="pbi-cli"), \
+             mock.patch("install_skill.subprocess.run",
+                        return_value=self._completed(1, stderr="boom")):
+            self.assertEqual(install_skill.main(["install", "--with-pbi-cli"]), 1)
+
+    def test_without_flag_never_calls_pbi_cli(self):
+        with mock.patch("install_skill.subprocess.run") as run:
+            install_skill.main(["install"])
+        run.assert_not_called()
+
+    def test_claude_md_block_warns_against_pbi_cli_report_commands(self):
+        install_skill.main(["install"])
+        content = self._claude_md()
+        self.assertIn("never use pbi-cli's report-layer", content)
+        self.assertIn("PBIR", content)
 
     def test_migrates_legacy_install_and_keeps_user_content(self):
         legacy = os.path.join(install_skill.SKILLS_TARGET_DIR, "vizbuilder")

@@ -386,6 +386,28 @@ pair vizbuilder with a live-connection tool: build the model first (live),
 close the connection, then run vizbuilder offline against the same file to
 add the report. See `vizbuilder-modeling` for the exact handoff.
 
+#### Using pbi-cli alongside vizbuilder (optional, Windows)
+
+```cmd
+pipx install pbi-cli-tool                       REM needs Python 3.10+ and Desktop running
+python install_skill.py install --with-pbi-cli  REM installs only its model-side skills
+```
+
+This adds pbi-cli's `power-bi-modeling`, `-dax`, `-partitions`, `-security`
+and `-deployment` skills (tables, measures, relationships, DAX, RLS, TMDL).
+Its report-layer skills are **deliberately not installed**: they write PBIR
+(`.pbip` projects), not the `.pbix` format Report Server uses, so vizbuilder
+owns all report work for a `.pbix`. Two things to know:
+
+- **Save before building.** Model changes made over the live connection exist
+  only in the running Desktop session until you File → Save; `build.py` copies
+  the model from the file on disk.
+- **Report Server Desktop.** `pbi connect` auto-detects regular Desktop only.
+  For the Report Server edition you may need `pbi connect -d localhost:<port>`
+  (see `vizbuilder-modeling`). Not verified against a real PBRS Desktop.
+
+pbi-cli is a separate MIT-licensed project; it is installed, not bundled.
+
 ### Testing the skills
 
 ```bash

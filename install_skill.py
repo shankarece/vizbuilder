@@ -13,6 +13,7 @@ Usage:
     python install_skill.py                          install all skills
     python install_skill.py install --skill vizbuilder-visuals
     python install_skill.py install --force          overwrite existing
+    python install_skill.py install --with-pbi-cli   also install pbi-cli's model-side skills
     python install_skill.py list                     show install status
     python install_skill.py uninstall                remove all skills
     python install_skill.py uninstall --skill vizbuilder-layout
@@ -21,6 +22,7 @@ Usage:
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 
 REPO_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -36,6 +38,23 @@ LEGACY_CLAUDE_MD_ENTRY = """
 **PBRS Report Visuals (no connection needed):**
 - **vizbuilder** -- add visuals to PBRS .pbix files (bar, line, card, combo, etc.)
 """
+
+# pbi-cli (https://github.com/MinaSaad1/pbi-cli) is a separate, Windows-only tool
+# that edits the live data model. Only its model-side skills are installed:
+# its report-layer skills (report/visuals/pages/themes/filters/custom-visuals)
+# write PBIR, which is not the legacy .pbix format Report Server uses.
+PBI_CLI_MODEL_SKILLS = (
+    "power-bi-modeling",
+    "power-bi-dax",
+    "power-bi-partitions",
+    "power-bi-security",
+    "power-bi-deployment",
+)
+PBI_CLI_INSTALL_HELP = (
+    "  pbi-cli not found. Install it (Windows, Python 3.10+), then re-run:\n"
+    "    pipx install pbi-cli-tool\n"
+    "    python install_skill.py install --with-pbi-cli"
+)
 
 MARKER_START = "<!-- vizbuilder:start -->"
 MARKER_END = "<!-- vizbuilder:end -->"
@@ -64,6 +83,9 @@ CLAUDE_MD_SNIPPET = (
     "- **vizbuilder-diagnostics** -- errors and troubleshooting\n"
     "\n"
     "Critical: edit only visuals_config.py, then run build.py / build.bat.\n"
+    "For a .pbix, never use pbi-cli's report-layer commands or skills (pbi report,\n"
+    "visual, filters, bookmarks, format; power-bi-report/visuals/pages/themes/filters):\n"
+    "they write PBIR, not .pbix. pbi-cli is for the data model only.\n"
     "Open the output in Desktop and File -> Save before deploying.\n"
     "<!-- vizbuilder:end -->\n"
 )
@@ -152,6 +174,34 @@ def cmd_list(_args) -> int:
     return 0
 
 
+def install_pbi_cli_model_skills(force: bool = False) -> int:
+    """Install pbi-cli's model-side skills via its own installer.
+
+    Returns 0 on success (or when pbi-cli is absent, after printing how to
+    install it), 1 if any pbi-cli install command fails.
+    """
+    exe = shutil.which("pbi-cli")
+    if not exe:
+        print(PBI_CLI_INSTALL_HELP)
+        return 0
+
+    failed = 0
+    print("\n  Installing pbi-cli model-side skills "
+          "(report-layer skills are skipped on purpose):")
+    for name in PBI_CLI_MODEL_SKILLS:
+        cmd = [exe, "skills", "install", "--skill", name, "--yes"]
+        if force:
+            cmd.append("--force")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"    {name}: ok")
+        else:
+            failed += 1
+            detail = (result.stderr or result.stdout).strip().splitlines()
+            print(f"    {name}: FAILED ({detail[-1] if detail else 'no output'})")
+    return 1 if failed else 0
+
+
 def cmd_install(args) -> int:
     bundled = get_bundled_skills()
     if not bundled:
@@ -183,10 +233,15 @@ def cmd_install(args) -> int:
     ensure_claude_md_snippet()
 
     print(f"\n  {installed} skill(s) installed to {SKILLS_TARGET_DIR}")
+
+    status = 0
+    if getattr(args, "with_pbi_cli", False):
+        status = install_pbi_cli_model_skills(force=args.force)
+
     if installed:
         print("  Restart Windsurf/Claude Code to activate the skills.")
         print('  Then say: "add a bar chart showing Sales by Region to my PBRS report"')
-    return 0
+    return status
 
 
 def cmd_uninstall(args) -> int:
@@ -220,6 +275,8 @@ def main(argv=None) -> int:
     p_install.add_argument("--skill", help="Install a single skill")
     p_install.add_argument("--force", action="store_true",
                            help="Overwrite existing installations")
+    p_install.add_argument("--with-pbi-cli", action="store_true",
+                           help="Also install pbi-cli's model-side skills (needs pbi-cli)")
 
     p_uninstall = sub.add_parser("uninstall", help="Remove installed skills")
     p_uninstall.add_argument("--skill", help="Remove a single skill")
