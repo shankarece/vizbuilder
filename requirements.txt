@@ -1,8 +1,12 @@
-# No external dependencies required.
-# All libraries used (zipfile, json, os, sys, uuid, tempfile)
-# are part of the Python standard library.
+# vizbuilder has NO required packages: it uses only the Python standard library.
 #
-# Requirements:
-#   - Python 3.8 or higher
-#   - Regular PBI Desktop (same monthly version as your PBRS Desktop)
-pbixray
+# Requirements
+#   - Python 3.8 or newer
+#   - Power BI Desktop for Report Server (recommended), or regular Power BI Desktop
+#     from the same monthly release, to open and save the result
+#
+# Optional (nothing breaks without it)
+#   pbixray   reads tables, columns, measures and relationships from a .pbix offline
+#             (MIT; needs pandas). Without internet: `pip download pbixray -d wheels`
+#             on a connected machine, then
+#             `pip install --no-index --find-links wheels pbixray` on the office machine.

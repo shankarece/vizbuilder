@@ -23,15 +23,14 @@ import json
 import os
 from pathlib import Path
 
+from visual_types import PBRS_VISUAL_NOTES
+
 
 # ── PBRS Constants ───────────────────────────────────────────────────────────
 
 PBRS_MAX_FILE_SIZE_MB = 2048  # 2GB typical limit
-PBRS_UNSUPPORTED_VISUALS = {
-    "advancedSlicerVisual",  # Tile slicer
-    "pageNavigator",         # Page navigation
-    # Most standard visuals are supported
-}
+# Shared with build.py's warnings (see visual_types.PBRS_VISUAL_NOTES)
+PBRS_UNSUPPORTED_VISUALS = frozenset(PBRS_VISUAL_NOTES)
 PBRS_MIN_SUPPORTED_VERSION = "September 2024"
 PBRS_MAX_SUPPORTED_VERSION = "May 2025"
 
@@ -110,10 +109,11 @@ def _check_visual_types(metadata: dict) -> list:
 
     for vtype, instances in unsupported_found.items():
         pages = set(inst["page"] for inst in instances)
+        reason, instead = PBRS_VISUAL_NOTES[vtype]
         issues.append(PBRSValidation(
             "warning", "unsupported_visual",
-            f"{vtype} not fully supported in PBRS (found on {len(pages)} page(s))",
-            suggestion=f"Replace with standard visuals; {len(instances)} instance(s) found",
+            f"{vtype}: {reason} (found on {len(pages)} page(s))",
+            suggestion=f"Replace with {instead}; {len(instances)} instance(s) found",
         ))
 
     return issues

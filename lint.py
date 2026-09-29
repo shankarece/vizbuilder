@@ -11,6 +11,7 @@ Usage:
     python lint.py <file.pbix> --fix              # auto-fix and write corrected PBIX
     python lint.py <file.pbix> --report out.md    # save audit report as markdown
     python lint.py <file.pbix> --fix --open       # fix and auto-open in Desktop
+    python lint.py <file.pbix> --fix --open --rs  # open in PBI Desktop for Report Server
 
 Compatible with September 2024 and May 2025 PBRS Desktop versions.
 """
@@ -23,7 +24,9 @@ import zipfile
 import tempfile
 from collections import defaultdict
 
-from layout_builder import read_layout, write_layout
+from desktop import AUTO, open_in_desktop, prefer_from_flags
+from layout_builder import (container_id, container_position, read_layout,
+                            set_container_position, write_layout)
 from pbix_patch import patch_pbix
 
 # ── Canvas constants ─────────────────────────────────────────────────────────
@@ -44,8 +47,8 @@ def _extract_visuals(layout: dict) -> list:
     results = []
     for si, sec in enumerate(layout.get("sections", [])):
         page_name = sec.get("displayName", f"Page {si+1}")
-        for vc in sec.get("visualContainers", []):
-            pos = vc.get("position", {})
+        for vi, vc in enumerate(sec.get("visualContainers", [])):
+            pos = container_position(vc)
             config_str = vc.get("config", "{}")
             try:
                 config = json.loads(config_str)
@@ -71,7 +74,7 @@ def _extract_visuals(layout: dict) -> list:
             results.append({
                 "page_index": si,
                 "page_name": page_name,
-                "id": vc.get("id", "?"),
+                "id": container_id(vc, vi),
                 "name": name[:12],
                 "type": vtype,
                 "x": pos.get("x", 0),
@@ -364,8 +367,8 @@ def auto_fix(layout: dict) -> tuple:
         vcs = sec.get("visualContainers", [])
 
         parsed = []
-        for vc in vcs:
-            pos = vc.get("position", {})
+        for vi, vc in enumerate(vcs):
+            pos = container_position(vc)
             config_str = vc.get("config", "{}")
             try:
                 config = json.loads(config_str)
@@ -374,7 +377,7 @@ def auto_fix(layout: dict) -> tuple:
             parsed.append({
                 "vc": vc, "pos": pos, "config": config,
                 "type": config.get("singleVisual", {}).get("visualType", "unknown"),
-                "id": vc.get("id", "?"),
+                "id": container_id(vc, vi),
             })
 
         # Fix 1: Snap to grid
@@ -511,7 +514,7 @@ def auto_fix(layout: dict) -> tuple:
         # Write back positions into config + vc
         for p in parsed:
             pos = p["pos"]
-            p["vc"]["position"] = pos
+            set_container_position(p["vc"], pos)
             cfg = p["config"]
             if "layouts" in cfg and cfg["layouts"]:
                 cfg["layouts"][0]["position"] = pos
@@ -577,7 +580,7 @@ def generate_report(visuals: list, issues: list, fixes: list = None) -> str:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def lint(pbix_path: str, do_fix: bool = False, report_path: str = None,
-         auto_open: bool = False) -> tuple:
+         auto_open: bool = False, prefer: str = AUTO) -> tuple:
     """Run all checks on a PBIX file. Returns (issues, visuals, fixes)."""
 
     layout = read_layout(pbix_path)
@@ -631,10 +634,7 @@ def lint(pbix_path: str, do_fix: bool = False, report_path: str = None,
             print(f"\n  Fixed file: {out_path}")
 
             if auto_open:
-                import subprocess
-                abs_path = os.path.abspath(out_path)
-                os.startfile(abs_path)
-                print(f"  Opening in Desktop...")
+                open_in_desktop(out_path, prefer)
         else:
             print(f"\n  No fixes needed --layout is clean.")
 
@@ -654,7 +654,7 @@ if __name__ == "__main__":
 
     if not args:
         print(__doc__)
-        print("Usage: python lint.py <file.pbix> [--fix] [--report out.md] [--open]")
+        print("Usage: python lint.py <file.pbix> [--fix] [--report out.md] [--open] [--rs | --regular]")
         sys.exit(1)
 
     pbix_path = args[0]
@@ -687,6 +687,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print(f"  File: {pbix_path}")
 
-    lint(pbix_path, do_fix=do_fix, report_path=report_path, auto_open=auto_open)
+    lint(pbix_path, do_fix=do_fix, report_path=report_path, auto_open=auto_open,
+         prefer=prefer_from_flags(flags))
 
     print("=" * 60)

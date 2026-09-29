@@ -80,6 +80,28 @@ def _parse_visual_bindings(visual_info: dict) -> dict:
 
 # ── Lineage Analysis ────────────────────────────────────────────────────────
 
+def _parse_query_ref(query_ref: str):
+    """Split a visual's queryRef into (table, field), or None.
+
+    Handles every shape a saved report uses:
+        'Orders.Region'            column
+        'Sum(Orders.Revenue)'      column with an aggregation
+        'Orders.Total Revenue'     model measure
+        'Orders[Sales]'            DAX-style reference
+    """
+    ref = (query_ref or "").strip()
+    wrapped = re.match(r"^[A-Za-z]+\((.*)\)$", ref)
+    if wrapped:
+        ref = wrapped.group(1).strip()
+    if "[" in ref and ref.endswith("]"):
+        table, field = ref.split("[", 1)
+        return table.strip(), field[:-1].strip()
+    if "." in ref:
+        table, field = ref.split(".", 1)
+        return table.strip(), field.strip()
+    return None
+
+
 class DataLineageAnalyzer:
     def __init__(self, metadata: dict):
         self.metadata = metadata
@@ -122,56 +144,41 @@ class DataLineageAnalyzer:
         lineages = []
 
         for visual_key, visual_info in self.visuals.items():
-            page_name, visual_id = visual_key.split(":")
+            page_name, visual_id = visual_key.rsplit(":", 1)
 
             # Extract bindings from visual
             for page in self.metadata.get("report", {}).get("pages", []):
                 if page["name"] == page_name:
                     for visual in page.get("visuals", []):
-                        if visual["id"] == int(visual_id):
+                        if str(visual["id"]) == visual_id:
                             # Parse field references
                             for binding in visual.get("bindings", []):
                                 query_ref = binding.get("query_ref", "")
-                                if binding.get("table") and binding.get("field"):
-                                    table, col = binding["table"], binding["field"]
-                                    field_key = f"{table}.{col}"
-                                    self.field_usage[field_key].append({
-                                        "visual": visual_key, "role": binding.get("role")})
-                                    visual_info["fields"].append(field_key)
-                                    lineages.append({
-                                        "source_table": table, "source_column": col,
-                                        "target_visual": visual_key, "target_page": page_name,
-                                        "role": binding.get("role")})
-                                elif query_ref:
-                                    # Try to extract table.column
-                                    match = re.search(
-                                        r"([a-zA-Z_][a-zA-Z0-9_]*)\[([^\]]+)\]|([a-zA-Z_][a-zA-Z0-9_]*)",
-                                        query_ref
-                                    )
-                                    if match:
-                                        table = match.group(1) or match.group(3)
-                                        col = match.group(2)
-                                        if table:
-                                            field_key = f"{table}.{col}" if col else table
-                                            self.field_usage[field_key].append({
-                                                "visual": visual_key,
-                                                "role": binding.get("role"),
-                                            })
-                                            visual_info["fields"].append(field_key)
-
-                                            lineages.append({
-                                                "source_table": table,
-                                                "source_column": col,
-                                                "target_visual": visual_key,
-                                                "target_page": page_name,
-                                                "role": binding.get("role"),
-                                            })
+                                if not query_ref:
+                                    continue
+                                parsed = _parse_query_ref(query_ref)
+                                if parsed:
+                                    field_key = f"{parsed[0]}.{parsed[1]}"
+                                else:
+                                    field_key = query_ref.strip()
+                                self.field_usage[field_key].append({
+                                    "visual": visual_key,
+                                    "role": binding.get("role"),
+                                })
+                                visual_info["fields"].append(field_key)
+                                lineages.append({
+                                    "source_table": parsed[0] if parsed else field_key,
+                                    "source_column": parsed[1] if parsed else None,
+                                    "target_visual": visual_key,
+                                    "target_page": page_name,
+                                    "role": binding.get("role"),
+                                })
 
         return lineages
 
     def _compute_used_fields(self) -> set:
-        """Fields used directly by visuals, plus those reachable through
-        relationships and DAX (measures / calculated columns), transitively."""
+        """Fields used by visuals, plus those reached through relationships
+        and DAX (measures / calculated columns), transitively."""
         used = {k for k, u in self.field_usage.items() if u}
 
         for rel in self.metadata.get("datamodel", {}).get("relationships", []):
@@ -180,9 +187,7 @@ class DataLineageAnalyzer:
                 if t and c:
                     used.add(f"{t}.{c}")
 
-        # name -> keys, for resolving bare [Name] references
-        by_name = defaultdict(list)
-        exprs = {}
+        by_name, exprs = defaultdict(list), {}
         for tname, tinfo in self.tables.items():
             for c, cinfo in tinfo["columns"].items():
                 by_name[c].append(f"{tname}.{c}")
@@ -198,11 +203,12 @@ class DataLineageAnalyzer:
             changed = False
             for key in list(used):
                 for m in ref_re.finditer(exprs.get(key, "")):
-                    tbl = m.group(1) or m.group(2)
+                    tbl = (m.group(1) or m.group(2) or "").strip()
                     name = m.group(3)
-                    tbl = tbl.strip() if tbl else None
-                    targets = ([f"{tbl}.{name}"] if tbl and f"{tbl}.{name}" in exprs or
-                               (tbl and tbl in self.tables) else by_name.get(name, []))
+                    if tbl and tbl in self.tables:
+                        targets = [f"{tbl}.{name}"]
+                    else:
+                        targets = by_name.get(name, [])
                     for tgt in targets:
                         if tgt not in used:
                             used.add(tgt)
@@ -212,25 +218,20 @@ class DataLineageAnalyzer:
     def _find_orphaned_objects(self):
         """Identify unused tables, columns, measures (DAX/relationship aware)."""
         used = self._compute_used_fields()
-        self.used_fields = used
+        system = ("LocalDateTable_", "DateTableTemplate_")  # auto-generated by Power BI
 
-        system = ("LocalDateTable_", "DateTableTemplate_")
         for table_name, table_info in self.tables.items():
             if table_name.startswith(system):
-                continue  # auto-generated by Power BI
-            cols_used = [c for c in table_info["columns"]
-                         if f"{table_name}.{c}" in used]
-            meas_used = [m for m in table_info["measures"]
-                         if f"{table_name}.{m}" in used]
-            if not cols_used and not meas_used and not table_info.get("hidden"):
+                continue
+            has_use = any(f"{table_name}.{n}" in used
+                          for n in list(table_info["columns"]) + list(table_info["measures"]))
+            if not has_use and not table_info.get("hidden"):
                 self.orphaned["tables"].append({
                     "name": table_name,
                     "reason": "No columns or measures used in any visual, measure or relationship",
                     "column_count": len(table_info["columns"]),
                 })
-
-        for table_name, table_info in self.tables.items():
-            if table_info.get("hidden") or table_name.startswith(system):
+            if table_info.get("hidden"):
                 continue
             for c in table_info["columns"]:
                 if f"{table_name}.{c}" not in used:
@@ -328,11 +329,19 @@ class DataLineageAnalyzer:
 
     def _generate_impact_summary(self) -> dict:
         """Generate impact analysis summary."""
+        def used(field_key):
+            return bool(self.field_usage.get(field_key))
+
+        tables_with_usage = sum(
+            1 for name, info in self.tables.items()
+            if any(used(f"{name}.{col}") for col in list(info["columns"]) + list(info["measures"])))
+        measures_with_usage = sum(
+            1 for name, info in self.tables.items()
+            for measure in info["measures"] if used(f"{name}.{measure}"))
         return {
-            "tables_with_usage": len({k.split(".")[0] for k, u in self.field_usage.items() if u}),
+            "tables_with_usage": tables_with_usage,
             "tables_unused": len(self.orphaned["tables"]),
-            "measures_with_usage": len([m for m in self.field_usage
-                                       if self.field_usage[m]]),
+            "measures_with_usage": measures_with_usage,
             "measures_unused": len(self.orphaned["measures"]),
             "visuals_connected": len(self.visuals),
             "isolated_visuals": len([v for v in self.visuals if not self.visuals[v].get("fields")]),

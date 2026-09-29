@@ -152,6 +152,15 @@ MEASURE_ROLES = frozenset({
     "ColumnY", "LineY", "X", "Size", "Data", "MaxValue",
 })
 
+# ── Visuals whose value fields are plain columns, not aggregations ───────────
+# A slicer or table lists column values (Region, Customer Name); wrapping those
+# in Sum() cannot work on text. Numbers in a table are aggregated explicitly,
+# e.g. "Sum(Orders[Sales])".
+
+PLAIN_VALUE_TYPES = frozenset({
+    "slicer", "textSlicer", "listSlicer", "advancedSlicerVisual", "tableEx",
+})
+
 # ── Default visual dimensions (width, height) ────────────────────────────────
 
 DEFAULT_SIZES = {
@@ -202,3 +211,41 @@ def resolve_visual_type(user_type: str) -> str:
         f"Use one of: {', '.join(sorted(SUPPORTED_VISUAL_TYPES))} "
         f"or an alias like: bar, line, column, donut, pie, table, matrix, combo, etc."
     )
+
+# ── Power BI Report Server compatibility ─────────────────────────────────────
+# Power BI Desktop for Report Server ships a few releases a year and has no
+# preview features, so newer visuals may be missing from the release you use.
+# build.py warns about these; pbrs_validator.py reports them.
+# Maps canonical type -> (reason, safer alias to use instead).
+
+PBRS_VISUAL_NOTES = {
+    "azureMap": (
+        "Azure Maps relies on online Azure services and is generally not "
+        "available on Power BI Report Server",
+        "table or bar",
+    ),
+    "cardVisual": (
+        "the new card visual may be missing from your PBRS Desktop release",
+        "card or multi_row_card",
+    ),
+    "cardNew": (
+        "the new card visual may be missing from your PBRS Desktop release",
+        "card or multi_row_card",
+    ),
+    "textSlicer": (
+        "the text slicer may be missing from your PBRS Desktop release",
+        "slicer",
+    ),
+    "listSlicer": (
+        "the list slicer may be missing from your PBRS Desktop release",
+        "slicer",
+    ),
+    "advancedSlicerVisual": (
+        "the button/tile slicer may be missing from your PBRS Desktop release",
+        "slicer",
+    ),
+    "pageNavigator": (
+        "the page navigator may be missing from older PBRS Desktop releases",
+        "button",
+    ),
+}

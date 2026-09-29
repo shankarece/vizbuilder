@@ -10,19 +10,23 @@ REM
 REM  Examples:
 REM    build.bat MyReport.pbix MyReport-Out.pbix
 REM    build.bat MyReport.pbix MyReport-Out.pbix --open
+REM    build.bat MyReport.pbix MyReport-Out.pbix --open --rs
 REM
 REM ============================================================
 
 if "%~1"=="" (
-    echo Usage: build.bat ^<input.pbix^> ^<output.pbix^> [--open]
+    echo Usage: build.bat ^<input.pbix^> ^<output.pbix^> [--open] [--rs ^| --regular]
     echo.
-    echo   --open   Automatically open the output in Power BI Desktop
+    echo   --open      Open the output in Power BI Desktop
+    echo               ^(Report Server edition when installed^)
+    echo   --rs        With --open: only use Power BI Desktop for Report Server
+    echo   --regular   With --open: only use regular Power BI Desktop
     exit /b 1
 )
 
 if "%~2"=="" (
     echo Error: Please provide both input and output PBIX paths.
-    echo Usage: build.bat ^<input.pbix^> ^<output.pbix^> [--open]
+    echo Usage: build.bat ^<input.pbix^> ^<output.pbix^> [--open] [--rs ^| --regular]
     exit /b 1
 )
 
