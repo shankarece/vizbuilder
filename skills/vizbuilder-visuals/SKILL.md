@@ -60,14 +60,37 @@ check the data model, so a typo only shows up in Desktop as
   in the `*_metadata.json` output (see vizbuilder-analysis). If that list is
   empty (the model is stored only as binary), copy names from the Data pane
   in Desktop, or reuse the bindings already in `field_references`.
-- **Value-type roles are aggregated.** Fields bound to `value`, `column`,
-  `line`, `x`, `y`, `size`, `indicator`, `goal`, `max`/`target` are written
-  as `Sum(Table[Column])`, so bind them to **numeric columns**. Category, row,
-  legend, detail, and trend fields are written as plain columns.
-- **Tables, cards, and slicers use the same aggregated `Values` role**, so a
-  text column bound there is also wrapped in `Sum`. Prefer numeric fields on
-  cards; for a text slicer or a table of text columns, check the visual in
-  Desktop and switch the field to "Don't summarize" before saving.
+
+## Binding Syntax (what to write in `bindings`)
+
+| Write | Means | Use for |
+|---|---|---|
+| `"Orders[Region]"` | A column. On a value axis (`value`, `column`, `line`, `x`, `y`, `size`, `indicator`, `goal`, `max`) it is **summed**; elsewhere it is a plain column. | Categories, rows, legends, cards of numeric columns |
+| `"Sum(Orders[Sales])"`, `"Avg(Orders[Discount])"`, `"Count(Orders[Order ID])"` | A column with an explicit aggregation | Numeric columns in tables; averages; counts |
+| `"Orders[[Profit Ratio]]"` | A **measure defined in the model**, used as the model defines it | Ratios, YTD, anything with real DAX |
+| `["Orders[Region]", "Sum(Orders[Sales])"]` | A **list** of fields in one role, in order | Table columns, several matrix values |
+
+Rules of thumb:
+
+- **Slicers and tables list plain columns** (never summed). In a table, mark
+  numeric fields yourself: `Sum(...)`, `Avg(...)`, or a `[[Measure]]`.
+- **Matrix:** `row` and `column` are plain, `value` is summed (or a list of
+  `Sum(...)` / `[[Measure]]`).
+- A measure is already aggregated: do not wrap it (`Sum(Orders[[X]])` is an error).
+- Use `Table[[Measure]]` only for names that exist as **measures** in the model;
+  use `Table[Column]` for columns. The tool cannot check which is which.
+
+## Confirmed and Unconfirmed Visuals
+
+Visuals whose data roles are the same in every source we checked (use these
+first): `card`, `slicer`, `clustered_column`, `clustered_bar`, `bar`, `column`,
+`line` (without legend), `donut`, `table`, `matrix`.
+
+**Unconfirmed on Report Server Desktop** - the role names vizbuilder writes may
+not match the classic layout, so these may draw without their legend, line or
+dots: a `legend` on any chart, `combo`, `kpi`, `gauge`, `scatter`, `waterfall`, `funnel`.
+`demo/VERIFY_IN_DESKTOP.md` tests them side by side. Until that is done, prefer
+the confirmed list, and if a chart needs grouping, say so in your reply.
 
 ## Binding Examples
 
@@ -115,9 +138,22 @@ add_visual("gauge", bindings={
 # Card: single value
 add_visual("card", bindings={"value": "Sales[Revenue]"},
            vid=7, title="Total Revenue")
+
+# Card on a model measure (ratio, YTD, ...)
+add_visual("card", bindings={"value": "Sales[[Profit Ratio]]"},
+           vid=8, title="Profit Ratio")
+
+# Slicer: plain column, never summed
+add_visual("slicer", bindings={"field": "Geo[Region]"},
+           vid=9, title="Region")
+
+# Table: text columns plain, numbers aggregated explicitly
+add_visual("table", bindings={"value": [
+    "Geo[Region]", "Product[Category]", "Sum(Sales[Revenue])", "Sales[[Order Count]]"]},
+    vid=10, title="Sales by region and category")
 ```
 
-A `bindings` dict can hold only one field per role (it is a Python dict).
+Each role takes one field or a list of fields.
 
 ## Supported Visual Types (32)
 

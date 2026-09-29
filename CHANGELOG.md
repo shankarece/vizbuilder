@@ -3,6 +3,32 @@
 Version number lives in `VERSION`. `python build.py --version` prints it, and the
 build banner shows it, so colleagues can say which release they have.
 
+## 0.2.0
+
+Office edition: everything needed to run, hand over and demonstrate vizbuilder on
+Power BI Report Server Desktop with no internet.
+
+- **Bindings:** `Table[[Measure]]` binds a real model measure; `Sum(...)`,
+  `Avg(...)`, `Count(...)` aggregate explicitly; a role takes a list of fields
+  (table columns, several matrix values).
+- **Fixed:** slicers and tables were written as `Sum(Column)`, which cannot work on
+  text (a Region slicer would not draw). They now use plain columns. **Behaviour
+  change:** numbers in a table must now be marked `Sum(...)` (or be a measure).
+- **Fixed:** reading reports saved by Power BI Desktop. The analyzer, lineage and
+  linter assumed vizbuilder's own container shape and crashed or reported
+  0 x 0 visuals on Desktop-saved files; lineage never saw any bindings on classic
+  `.pbix` files, so "unused fields" was always empty or wrong. Containers now
+  also carry the standard top-level `x/y/width/height` fields.
+- **New:** optional `pbixray` support reads tables, columns, measures and
+  relationships from a `.pbix` offline (`datamodel.source` is `"pbixray"`).
+- **New:** `doctor.py` / `doctor.bat` environment check with a real self-test.
+- **New:** `START_HERE.md` and `demo/` (Superstore dashboard, demo script, user
+  guide, prompts, five-minute Desktop check with A/B role tests).
+- **New:** a test enforces that the program imports no network library.
+- **Still unconfirmed on Report Server Desktop:** legends, combo, KPI, gauge,
+  scatter, waterfall, funnel role names. `demo/VERIFY_IN_DESKTOP.md` settles it.
+- 190+ automated tests.
+
 ## 0.1.1
 
 - `vizbuilder-modeling`: which data-goblin/power-bi-agentic-development plugins

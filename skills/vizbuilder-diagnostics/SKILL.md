@@ -36,7 +36,10 @@ Run these from the repo root. If `python` is not found, use `py` on Windows.
 |---|---|---|
 | `MashupValidationError` on open | Opened the input, or a file whose SecurityBindings wasn't stripped | Open the *output* file |
 | "Can't display visual" | Table/column name mismatch | Compare bindings with `datamodel.tables` in `*_metadata.json` or the Desktop Data pane (exact case and spaces) |
-| Visual shows wrong totals / error on text field | Text column in an aggregated role (wrapped in `Sum`) | Bind numeric columns to value roles; set "Don't summarize" in Desktop |
+| Card / axis shows an error on a text field | A text column on a value axis is summed | Bind a numeric column, or use `Count(Table[Column])`; slicers and tables already use plain columns |
+| A table shows one giant total instead of rows | Numeric columns are aggregated, text columns are grouped | List the grouping columns plain and mark numbers `Sum(Table[Column])` |
+| Legend / combo line / scatter dots missing | Role names vizbuilder writes may not match the classic layout | Run `demo/VERIFY_IN_DESKTOP.md`; prefer the confirmed visuals in `vizbuilder-visuals` |
+| `ValueError: ... a model measure is already aggregated` | `Sum(Table[[Measure]])` | Remove the `Sum(...)`: write `Table[[Measure]]` |
 | "Unrecognized version" on PBRS | File last saved by a newer regular Desktop | Open and save in Power BI Desktop for Report Server (or regular Desktop from the same month) |
 | Visual blank / "not supported" in PBRS Desktop | Visual type newer than the PBRS release | Use the safer type from the build warning (`slicer`, `card`, …) |
 | `FileNotFoundError` on input | Wrong path | Use an absolute path or run from the PBIX folder |

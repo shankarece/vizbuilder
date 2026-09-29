@@ -16,6 +16,7 @@ To define your visuals, edit visuals_config.py only.
 
 import zipfile
 import json
+import re
 import sys
 import os
 import uuid
@@ -25,9 +26,59 @@ from visual_types import (
     VISUAL_DATA_ROLES,
     ROLE_ALIASES,
     MEASURE_ROLES,
+    PLAIN_VALUE_TYPES,
     DEFAULT_SIZES,
     PBRS_VISUAL_NOTES,
 )
+
+# ── Container helpers (read layouts written by vizbuilder OR by Desktop) ─────
+#
+# vizbuilder stores a container's position under "position"; Power BI Desktop
+# (and other tools) store x/y/z/width/height directly on the container and often
+# have no "id". Anything that reads a saved report must cope with both.
+
+_POS_KEYS = ("x", "y", "z", "width", "height", "tabOrder")
+_TOP_LEVEL_POS_KEYS = ("x", "y", "width", "height")
+
+
+def container_position(vc: dict) -> dict:
+    """Return a container's position dict, however the file stores it."""
+    nested = vc.get("position")
+    if isinstance(nested, dict) and any(k in nested for k in _TOP_LEVEL_POS_KEYS):
+        return dict(nested)
+    top = {k: vc[k] for k in _POS_KEYS if k in vc}
+    if top:
+        return top
+    try:
+        layouts = json.loads(vc.get("config") or "{}").get("layouts") or []
+    except (TypeError, ValueError, AttributeError):
+        layouts = []
+    if layouts and isinstance(layouts[0].get("position"), dict):
+        return dict(layouts[0]["position"])
+    return {}
+
+
+def set_container_position(vc: dict, pos: dict) -> None:
+    """Write a position back to every place this container keeps one."""
+    has_top = any(k in vc for k in _TOP_LEVEL_POS_KEYS)
+    if has_top:
+        for k in _POS_KEYS:
+            if k in pos:
+                vc[k] = pos[k]
+    if isinstance(vc.get("position"), dict) or not has_top:
+        vc["position"] = dict(pos)
+
+
+def container_id(vc: dict, index: int = 0):
+    """A stable id for a container: its "id", else its config name, else #index."""
+    if vc.get("id") is not None:
+        return vc["id"]
+    try:
+        name = json.loads(vc.get("config") or "{}").get("name")
+    except (TypeError, ValueError, AttributeError):
+        name = None
+    return name or f"#{index}"
+
 
 # ── Dashboard title helper ───────────────────────────────────────────────────
 
@@ -63,6 +114,7 @@ def add_title(text: str, x: int = 0, y: int = 0, w: int = 1280, h: int = 50,
     return {
         "id": vid,
         "position": pos,
+        **{k: pos[k] for k in _POS_KEYS},
         "config": json.dumps(config, separators=(",", ":")),
         "filters": "[]",
         "query": "",
@@ -89,6 +141,67 @@ def parse_field_ref(ref: str) -> tuple:
     return table.strip(), col.strip()
 
 
+def parse_field(ref: str) -> tuple:
+    """Parse a binding into (table, name, is_measure).
+
+    'Orders[Sales]'         -> ('Orders', 'Sales', False)      a column
+    'Orders[[Total Sales]]' -> ('Orders', 'Total Sales', True) a model measure
+
+    A column in a value role is summed (like Desktop's implicit sum). A measure
+    is referenced by name and used as the model defines it (ratios, YTD, ...).
+    """
+    if "[" not in ref or not ref.endswith("]"):
+        raise ValueError(
+            f"Invalid field reference: '{ref}'. "
+            f"Use Table[Column] for a column or Table[[Measure]] for a measure, "
+            f"e.g. 'Orders[Sales]' or 'Orders[[Total Sales]]'"
+        )
+    table, rest = ref.split("[", 1)
+    if rest.startswith("[") and rest.endswith("]]"):
+        name, is_measure = rest[1:-2].strip(), True
+    else:
+        name, is_measure = rest.rstrip("]").strip(), False
+    if not table.strip() or not name:
+        raise ValueError(
+            f"Invalid field reference: '{ref}'. Table and field names cannot be empty."
+        )
+    return table.strip(), name, is_measure
+
+
+# Aggregations a binding can ask for: name -> (query function code, select-name
+# prefix, display prefix). Codes follow Power BI's QueryAggregateFunction
+# (Sum=0, Avg=1, CountNonNull=5), as used in Desktop-authored reports.
+AGGREGATIONS = {
+    "sum":     (0, "Sum", "Sum of"),
+    "avg":     (1, "Avg", "Average of"),
+    "average": (1, "Avg", "Average of"),
+    "count":   (5, "CountNonNull", "Count of"),
+}
+_FUNCTION_WRAPPER = re.compile(r"^\s*([A-Za-z]+)\s*\(\s*(.+?)\s*\)\s*$")
+
+
+def parse_binding(ref: str) -> dict:
+    """Parse one binding into {table, name, measure, function}.
+
+    'Orders[Region]'             plain column (or summed on a value axis)
+    'Sum(Orders[Sales])'         column with an explicit aggregation
+    'Avg(Orders[Discount])'      Sum, Avg or Count
+    'Orders[[Profit Ratio]]'     a measure defined in the model
+    """
+    function = None
+    wrapped = _FUNCTION_WRAPPER.match(ref)
+    inner = ref
+    if wrapped and wrapped.group(1).lower() in AGGREGATIONS:
+        function, inner = wrapped.group(1).lower(), wrapped.group(2)
+    table, name, is_measure = parse_field(inner)
+    if function and is_measure:
+        raise ValueError(
+            f"'{ref}': a model measure is already aggregated; "
+            f"use '{inner}' without {wrapped.group(1)}(...)"
+        )
+    return {"table": table, "name": name, "measure": is_measure, "function": function}
+
+
 # ── Legacy PBIX query builders ────────────────────────────────────────────────
 
 def _col_expr(table: str, prop: str, alias: str = "o"):
@@ -112,8 +225,23 @@ def _agg_expr(table: str, prop: str, func: int = 0, alias: str = "o"):
         }
     }
 
-def _build_select_item(table: str, column: str, is_measure: bool, alias: str = "o"):
-    """Build a Select item for the prototypeQuery."""
+def _measure_expr(column: str, alias: str) -> dict:
+    return {"Measure": {"Expression": {"SourceRef": {"Source": alias}},
+                        "Property": column}}
+
+
+def _build_select_item(table: str, column: str, is_measure: bool, alias: str = "o",
+                       model_measure: bool = False, function: str = "sum"):
+    """Build a Select item for the prototypeQuery.
+
+    is_measure    -> a column aggregated on a value axis (function: sum/avg/count)
+    model_measure -> a measure defined in the model (Measure reference)
+    """
+    if model_measure:
+        item = _measure_expr(column, alias)
+        item["Name"] = f"{table}.{column}"
+        item["NativeReferenceName"] = column
+        return item
     if is_measure:
         return {
             "Aggregation": {
@@ -123,9 +251,9 @@ def _build_select_item(table: str, column: str, is_measure: bool, alias: str = "
                         "Property": column
                     }
                 },
-                "Function": 0
+                "Function": AGGREGATIONS[function][0]
             },
-            "Name": f"Sum({table}.{column})"
+            "Name": f"{AGGREGATIONS[function][1]}({table}.{column})"
         }
     else:
         return {
@@ -136,18 +264,31 @@ def _build_select_item(table: str, column: str, is_measure: bool, alias: str = "
             "Name": f"{table}.{column}"
         }
 
-def _build_projection(table: str, column: str, is_measure: bool):
-    """Build a projection entry for singleVisual.projections."""
-    query_ref = f"Sum({table}.{column})" if is_measure else f"{table}.{column}"
+def _build_projection(table: str, column: str, is_measure: bool,
+                      model_measure: bool = False, function: str = "sum"):
+    """Build a projection entry for singleVisual.projections.
+
+    queryRef must equal the matching Select item's Name or the visual is blank.
+    """
+    if model_measure:
+        return {"queryRef": f"{table}.{column}"}
+    query_ref = (f"{AGGREGATIONS[function][1]}({table}.{column})"
+                 if is_measure else f"{table}.{column}")
     proj = {"queryRef": query_ref}
     if not is_measure:
         proj["active"] = True
     return proj
 
-def _build_selection(table: str, column: str, is_measure: bool, role: str):
+def _build_selection(table: str, column: str, is_measure: bool, role: str,
+                     model_measure: bool = False, function: str = "sum"):
     """Build a selection metadata entry for dataTransforms."""
-    query_ref = f"Sum({table}.{column})" if is_measure else f"{table}.{column}"
-    display   = f"Sum of {column}" if is_measure else column
+    if model_measure:
+        query_ref, display = f"{table}.{column}", column
+    elif is_measure:
+        prefix, shown = AGGREGATIONS[function][1], AGGREGATIONS[function][2]
+        query_ref, display = f"{prefix}({table}.{column})", f"{shown} {column}"
+    else:
+        query_ref, display = f"{table}.{column}", column
     return {
         "referenceKey": query_ref,
         "displayName":  display,
@@ -314,19 +455,37 @@ def add_visual(visual_type: str, bindings: dict,
 
     aliases = ROLE_ALIASES.get(vtype, {})
 
-    # Resolve bindings: friendly name → PBIR role name → parsed field ref
+    # Resolve bindings: friendly name → PBIR role name → parsed field ref.
+    # A role may hold one field or a list (e.g. the columns of a table).
     resolved = []  # list of (role, table, column, is_measure)
+    field_kinds = []  # parallel: (model_measure: bool, function: str)
     tables_seen = {}  # table → alias
 
-    for user_role, field_ref in bindings.items():
+    for user_role, field_refs in bindings.items():
         role = aliases.get(user_role.lower(), user_role)
-        table, column = parse_field_ref(field_ref)
-        is_measure = role in MEASURE_ROLES
+        if isinstance(field_refs, (list, tuple)):
+            refs = list(field_refs)
+        else:
+            refs = [field_refs]
+        for field_ref in refs:
+            spec = parse_binding(field_ref)
+            table, column = spec["table"], spec["name"]
+            if spec["measure"]:
+                model_measure, function = True, "sum"
+                is_measure = True
+            elif spec["function"]:
+                model_measure, function = False, spec["function"]
+                is_measure = True
+            else:
+                # Slicers and tables list plain columns; other value roles are
+                # aggregated (summed) like Desktop's implicit sum.
+                model_measure, function = False, "sum"
+                is_measure = role in MEASURE_ROLES and vtype not in PLAIN_VALUE_TYPES
+            field_kinds.append((model_measure, function))
 
-        if table not in tables_seen:
-            alias = chr(ord("a") + len(tables_seen))
-            tables_seen[table] = alias
-        resolved.append((role, table, column, is_measure))
+            if table not in tables_seen:
+                tables_seen[table] = chr(ord("a") + len(tables_seen))
+            resolved.append((role, table, column, is_measure))
 
     # Use first alias for single-table (most common case)
     alias_map = tables_seen
@@ -342,17 +501,19 @@ def add_visual(visual_type: str, bindings: dict,
     selections  = []
     order_by    = []
 
-    for role, table, column, is_measure in resolved:
+    for (role, table, column, is_measure), (model_measure, function) in zip(resolved, field_kinds):
         alias = alias_map[table]
-        proj  = _build_projection(table, column, is_measure)
-        sel   = _build_select_item(table, column, is_measure, alias)
-        meta  = _build_selection(table, column, is_measure, role)
+        proj  = _build_projection(table, column, is_measure, model_measure, function)
+        sel   = _build_select_item(table, column, is_measure, alias, model_measure, function)
+        meta  = _build_selection(table, column, is_measure, role, model_measure, function)
 
         projections.setdefault(role, []).append(proj)
         selects.append(sel)
         selections.append(meta)
 
-        if is_measure:
+        if model_measure:
+            order_by.append({"Direction": 2, "Expression": _measure_expr(column, alias)})
+        elif is_measure:
             order_by.append({
                 "Direction": 2,
                 "Expression": {
@@ -363,7 +524,7 @@ def add_visual(visual_type: str, bindings: dict,
                                 "Property": column
                             }
                         },
-                        "Function": 0
+                        "Function": AGGREGATIONS[function][0]
                     }
                 }
             })
@@ -409,6 +570,7 @@ def add_visual(visual_type: str, bindings: dict,
     return {
         "id":             vid,
         "position":       pos,
+        **{k: pos[k] for k in _POS_KEYS},
         "config":         json.dumps(config,          separators=(",", ":")),
         "filters":        "[]",
         "query":          json.dumps(query,            separators=(",", ":")),

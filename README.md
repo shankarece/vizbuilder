@@ -1,5 +1,8 @@
 # pbix-visual-builder
 
+> **New here? Read [`START_HERE.md`](START_HERE.md).** Business users: `demo/USER_GUIDE.md`.
+> Demoing to your lead: `demo/DEMO_SCRIPT.md`. Check a computer with `doctor.bat`.
+
 Add visuals to Power BI Report Server (PBRS) `.pbix` files programmatically
 using Python — no Power BI Service, no premium licence, no external packages.
 
@@ -97,6 +100,9 @@ Then use natural language prompts in Windsurf to create visuals.
 | `pbix_patch.py` | PBIX zip manipulation | No |
 | `make_release.py` | Builds one versioned zip to share with colleagues | Maintainers |
 | `VERSION`, `CHANGELOG.md` | Release number and what changed | Bump on release |
+| `doctor.py` / `doctor.bat` | Plain-language check that a computer is ready (and proves it by building a test report) | Run anytime |
+| `START_HERE.md` | One-page setup and "which document is for me" | No |
+| `demo/` | Sample dashboards, demo script, user guide, prompt library, Desktop check | Copy and adapt |
 | `desktop.py` | Finds/opens Power BI Desktop (Report Server edition first) for `--open` | No |
 | `install_skill.py` | Install / list / uninstall Claude Code / Windsurf skills | Run once |
 | `skills/*/SKILL.md` | 8 task-focused Claude Code skills | No |
@@ -225,6 +231,22 @@ add_visual("line", bindings={
     "value":    "Sales[Revenue]",
 }, title="Monthly Trend", show_labels=True)
 ```
+
+### Binding syntax
+
+| Write | Meaning |
+|---|---|
+| `"Orders[Region]"` | A column. Summed on a value axis (`value`, `x`, `y`, ...), plain elsewhere. |
+| `"Sum(Orders[Sales])"`, `"Avg(Orders[Discount])"`, `"Count(Orders[Order ID])"` | A column with an explicit aggregation. |
+| `"Orders[[Profit Ratio]]"` | A **measure defined in the model**, used exactly as the model defines it. |
+| `["Orders[Region]", "Sum(Orders[Sales])"]` | Several fields in one role (table columns, multiple matrix values). |
+
+Slicers and tables use plain columns; mark numbers in a table with `Sum(...)` or a
+`[[Measure]]`. See `demo/superstore_dashboard.py` for a complete example.
+
+**Unconfirmed on Report Server Desktop:** chart legends, combo, KPI, gauge,
+scatter, waterfall and funnel. Run `demo/VERIFY_IN_DESKTOP.md` to test them on your
+version; until then prefer cards, slicers, column/bar/line, donut, table and matrix.
 
 ### Formatting (auto-applied)
 

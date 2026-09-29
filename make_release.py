@@ -12,7 +12,7 @@ then run this). The zip unpacks to one folder, vizbuilder-<version>/, and a
 matching .sha256 file is written so the recipient can check the download.
 
 Only files a colleague needs are included: the scripts, .bat launchers,
-skills/, tests/ and the docs. Working notes, .pbix files, caches and git data
+skills/, demo/, tests/ and the docs. Working notes, .pbix files, caches and git data
 are left out.
 """
 
@@ -28,7 +28,7 @@ REPO_DIR = os.path.dirname(os.path.abspath(__file__))
 EXCLUDED_FILES = {"REVIEW_SUMMARY.md", "DEVIN_TASK.md"}
 INCLUDED_SUFFIXES = (".py", ".bat", ".md", ".txt")
 INCLUDED_FILES = {"VERSION"}
-INCLUDED_DIRS = ("skills", "tests")
+INCLUDED_DIRS = ("skills", "tests", "demo")
 SKIPPED_PARTS = {"__pycache__", ".git", "dist"}
 SKIPPED_SUFFIXES = (".pyc", ".pyo", ".pbix", ".pbit", ".layout")
 

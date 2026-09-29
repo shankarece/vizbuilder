@@ -57,10 +57,28 @@ Top-level keys: `file`, `pbix_version`, `security`, `structure`, `datamodel`, `r
 `field_references`. Use `datamodel.tables` to get exact `Table[Column]` names
 for vizbuilder-visuals bindings.
 
-`datamodel.tables` is filled only when the PBIX carries a readable model
-schema; the `DataModel` itself is a compressed binary that is not decoded. If
-the list is empty, `field_references` still shows every field the existing
-visuals bind to, and the Data pane in Desktop shows the rest.
+The `DataModel` inside a `.pbix` is a compressed binary that the standard
+library cannot decode, so by default `datamodel.tables` is **empty** and
+`datamodel.source` is `"none"`. To read tables, columns, measures (with DAX) and
+relationships **offline**, install the optional
+[pbixray](https://github.com/Hugoberry/pbixray) package (MIT; it needs `pandas`,
+so an offline office needs a wheel folder, see below). When present it is used
+automatically and `datamodel.source` becomes `"pbixray"`.
+
+```cmd
+pip install pbixray
+```
+
+Without it, `field_references` still lists every field the existing visuals use,
+and the Desktop Data pane (or your modeling tool) shows the rest. Lineage and
+orphan detection need the model: with an empty model they report nothing unused.
+
+**No internet on the office machine?** On any machine that has it, run
+`pip download pbixray -d wheels` (same Python version and 64-bit Windows), copy the
+`wheels` folder across, then `pip install --no-index --find-links wheels pbixray`.
+
+Hidden-column flags are not available from pbixray, so the "excessive hidden
+columns" check stays quiet when it is used.
 
 ## Data Lineage
 
@@ -68,7 +86,9 @@ visuals bind to, and the Data pane in Desktop shows the rest.
 python data_lineage.py metadata.json lineage.json
 ```
 
-- Which tables/columns/measures feed which visuals
+- Which tables/columns/measures feed which visuals (matched from each visual's
+  saved query references such as `Sum(Orders.Revenue)`; works on reports saved
+  by Desktop as well as ones vizbuilder built)
 - **Orphaned objects** — tables, columns, measures not used by any visual
 - Measure-to-measure dependency chains
 - Circular reference detection

@@ -25,6 +25,7 @@ matches the request before acting:
 ## Commands (run from the repo root)
 
 ```cmd
+python doctor.py
 python -m unittest discover tests
 python analyze.py input.pbix --metadata-only --output analysis\
 build.bat input.pbix output.pbix
@@ -47,8 +48,12 @@ python analyze.py output.pbix --output analysis\
    missing from the output. Save (ideally close Desktop) before building.
 5. **Check real names first.** Read `datamodel.tables` in the metadata output
    (or the Desktop Data pane). Table and column names must match exactly.
-6. **Known limitation:** value fields are always written as `Sum(column)`, so
-   bind raw numeric columns. Real DAX measures cannot be bound yet.
+6. **Binding syntax** (details in `vizbuilder-visuals`):
+   `"Orders[Region]"` is a column (summed on a value axis, plain elsewhere);
+   `"Sum(Orders[Sales])"` / `"Avg(...)"` / `"Count(...)"` aggregate explicitly;
+   `"Orders[[Profit Ratio]]"` is a **model measure**; a list gives several fields
+   in one role (table columns). Slicers and tables use plain columns. Use
+   `[[Measure]]` only for names that really are measures in the model.
 7. **Never use PBIR-based report tooling on a `.pbix`**: pbi-cli's report-layer
    commands and skills (`pbi report`, `visual`, `filters`, `bookmarks`, `format`),
    `pbir-cli`, and data-goblin's `reports` / `create-pbi-report` skills. They
@@ -56,9 +61,22 @@ python analyze.py output.pbix --output analysis\
    data model only (see `vizbuilder-modeling`).
 8. **Prefer PBRS-safe visuals.** If `build.py` prints a "PBRS Desktop
    compatibility warning", use the suggested alternative unless told otherwise.
+   Confirmed: card, slicer, column/bar/line (no legend), donut, table, matrix.
+   **Unconfirmed on Report Server Desktop:** any chart legend, combo, KPI, gauge,
+   scatter, waterfall, funnel. Use them only if the user asks, and say they are
+   untested (see `demo/VERIFY_IN_DESKTOP.md`).
 9. A built file has no `SecurityBindings`. It must be opened in Power BI
    Desktop for Report Server and saved before it can be deployed. That step is
    for a human.
+
+## Talking to non-technical users
+
+Many users do not write code. Answer in plain language, name the files you
+created, list any warning in one sentence each, and finish by telling them the
+remaining steps are theirs: open the file in Power BI Desktop for Report Server,
+check the numbers, **File -> Save**, publish. Never publish anything yourself.
+A ready-made example is `demo/superstore_dashboard.py`; prompts are in
+`demo/PROMPTS.md`.
 
 ## Definition of done for a dashboard request
 

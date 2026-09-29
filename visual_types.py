@@ -152,6 +152,15 @@ MEASURE_ROLES = frozenset({
     "ColumnY", "LineY", "X", "Size", "Data", "MaxValue",
 })
 
+# ── Visuals whose value fields are plain columns, not aggregations ───────────
+# A slicer or table lists column values (Region, Customer Name); wrapping those
+# in Sum() cannot work on text. Numbers in a table are aggregated explicitly,
+# e.g. "Sum(Orders[Sales])".
+
+PLAIN_VALUE_TYPES = frozenset({
+    "slicer", "textSlicer", "listSlicer", "advancedSlicerVisual", "tableEx",
+})
+
 # ── Default visual dimensions (width, height) ────────────────────────────────
 
 DEFAULT_SIZES = {

@@ -23,6 +23,12 @@ import install_skill  # noqa: E402
 SKILLS_DIR = os.path.join(REPO_DIR, "skills")
 
 
+def script_exists(name: str) -> bool:
+    """A script named in a doc may live at the top level or in demo/."""
+    return any(os.path.isfile(os.path.join(REPO_DIR, folder, name))
+               for folder in ("", "demo"))
+
+
 # ── Frontmatter parsing (no pyyaml) ──────────────────────────────────────────
 
 def parse_frontmatter(text: str) -> dict:
@@ -142,7 +148,7 @@ class SkillFilesTest(unittest.TestCase):
                 text = f.read()
             for script in set(re.findall(r"\b([a-z_]+\.(?:py|bat))\b", text)):
                 with self.subTest(skill=name, script=script):
-                    self.assertTrue(os.path.isfile(os.path.join(REPO_DIR, script)),
+                    self.assertTrue(script_exists(script),
                                     f"{script} referenced but not in repo")
 
     def test_referenced_skills_exist(self):
@@ -165,7 +171,7 @@ class SkillFilesTest(unittest.TestCase):
                 self.assertIn(name, text)
         for script in set(re.findall(r"\b([a-z_]+\.(?:py|bat))\b", text)):
             with self.subTest(script=script):
-                self.assertTrue(os.path.isfile(os.path.join(REPO_DIR, script)),
+                self.assertTrue(script_exists(script),
                                 f"{script} referenced but not in repo")
 
     def test_visual_aliases_documented(self):

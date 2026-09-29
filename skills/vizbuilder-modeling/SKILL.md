@@ -178,6 +178,18 @@ Its `pbi-report-design` skill (visual hierarchy, layout and spacing, KPI/card
 design, chart choice, accessibility) is a good read for design decisions; apply
 the principles, but build through vizbuilder, not its `pbir` commands.
 
+## Other Offline Tools Worth Knowing (all MIT)
+
+| Tool | What it does | Status for a Report Server office |
+|---|---|---|
+| [pbixray](https://github.com/Hugoberry/pbixray) | Reads tables, columns, DAX measures and relationships out of a `.pbix` **without Desktop** | Recommended, optional. vizbuilder's analyzer uses it automatically (see `vizbuilder-analysis`). Verified here on a generated model. |
+| [pbix-mcp](https://github.com/d0nk3yhm/pbix-mcp) | Creates and edits `.pbix` files (data model, measures, visuals) with no Desktop | **Experimental.** Beta; its author verified files only in a March 2026 regular Desktop, never Report Server. Its output works with vizbuilder (the model survives a build byte for byte, verified here), but it must pass `demo/VERIFY_IN_DESKTOP.md` in your Desktop before anyone relies on it. |
+| [Power BI Modeling MCP](https://github.com/microsoft/powerbi-modeling-mcp) | Microsoft's live modeling server (tables, measures, relationships) | The one your assistant already uses for the model phase. |
+| [pbi-tools](https://github.com/pbi-tools/pbi-tools) | Extracts a `.pbix` into source-control friendly files and compiles it back | Useful for version control of classic `.pbix` files. Not needed for building. |
+
+Do not install a tool just because it exists: each adds a supply-chain risk in a
+bank. The default vizbuilder package needs none of them.
+
 ## Full Agentic Workflow (One Prompt, Two Tools)
 
 ```text

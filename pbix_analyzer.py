@@ -26,6 +26,8 @@ from datetime import datetime
 from pathlib import Path
 from collections import defaultdict
 
+from layout_builder import container_id, container_position
+
 # ── PBIX Structure Constants ─────────────────────────────────────────────────
 
 PBIX_ENTRIES = {
@@ -101,9 +103,9 @@ def _extract_layout_metadata(pbix_path: str) -> dict:
                     "visual_count": 0,
                 }
 
-                for vc in section.get("visualContainers", []):
-                    vc_id = vc.get("id", "?")
-                    pos = vc.get("position", {})
+                for vi, vc in enumerate(section.get("visualContainers", [])):
+                    vc_id = container_id(vc, vi)
+                    pos = container_position(vc)
                     config_str = vc.get("config", "{}")
 
                     try:
@@ -114,8 +116,16 @@ def _extract_layout_metadata(pbix_path: str) -> dict:
                     sv = config.get("singleVisual", {})
                     vtype = sv.get("visualType", "unknown")
 
-                    # Extract data role bindings
+                    # Extract data role bindings. Legacy .pbix layouts (what
+                    # Report Server uses) keep them in singleVisual.projections;
+                    # the newer PBIR shape uses query.queryState.
                     bindings = []
+                    for role, projected in (sv.get("projections") or {}).items():
+                        for proj in projected:
+                            bindings.append({
+                                "role": role,
+                                "query_ref": proj.get("queryRef", ""),
+                            })
                     query_state = sv.get("query", {}).get("queryState", {})
                     for role, role_data in query_state.items():
                         for proj in role_data.get("projections", []):
@@ -168,6 +178,85 @@ def _extract_layout_metadata(pbix_path: str) -> dict:
 
 # ── DataModel Metadata (Table/Column/Measure) ────────────────────────────────
 
+def _records(frame) -> list:
+    """Rows of a DataFrame-like object as dicts ([] for None or empty)."""
+    if frame is None or getattr(frame, "empty", False):
+        return []
+    return frame.to_dict("records") if hasattr(frame, "to_dict") else list(frame)
+
+
+def _read_model_with_pbixray(pbix_path: str):
+    """Read the data model with the optional `pbixray` package.
+
+    pbixray (MIT, https://github.com/Hugoberry/pbixray) decodes the compressed
+    DataModel offline, which the standard library cannot. Returns
+    {"tables": [...], "relationships": [...]} or None when pbixray is not
+    installed or cannot read the file, so callers fall back silently.
+    """
+    try:
+        from pbixray import PBIXRay
+    except ImportError:
+        return None
+
+    try:
+        model = PBIXRay(pbix_path)
+        names = [str(n) for n in model.tables]
+        schema = _records(model.schema)
+        measures = _records(model.dax_measures)
+        calc_columns = _records(model.dax_columns)
+        relationships = _records(model.relationships)
+    except Exception as e:
+        print(f"  Note: pbixray could not read the model: {e}")
+        return None
+
+    tables = {n: {"name": n, "columns": [], "measures": [], "hidden": False}
+              for n in names}
+
+    def table_for(name):
+        return tables.setdefault(str(name), {"name": str(name), "columns": [],
+                                             "measures": [], "hidden": False})
+
+    for row in schema:
+        table_for(row.get("TableName"))["columns"].append({
+            "name": row.get("ColumnName"),
+            "type": str(row.get("PandasDataType", "")).lower(),
+            "hidden": False,  # pbixray does not report hidden state
+            "expression": "",
+        })
+    for row in calc_columns:
+        table = table_for(row.get("TableName"))
+        expression = row.get("Expression") or ""
+        existing = [c for c in table["columns"] if c["name"] == row.get("ColumnName")]
+        if existing:
+            existing[0]["expression"] = expression
+        else:
+            table["columns"].append({"name": row.get("ColumnName"), "type": "",
+                                     "hidden": False, "expression": expression})
+    for row in measures:
+        table_for(row.get("TableName"))["measures"].append({
+            "name": row.get("Name"),
+            "expression": row.get("Expression") or "",
+            "format_string": "",
+            "hidden": False,
+            "display_folder": row.get("DisplayFolder") or "",
+        })
+
+    if not tables:
+        return None
+    return {
+        "tables": list(tables.values()),
+        "relationships": [{
+            "from_table": r.get("FromTableName"),
+            "from_column": r.get("FromColumnName"),
+            "to_table": r.get("ToTableName"),
+            "to_column": r.get("ToColumnName"),
+            "cardinality": r.get("Cardinality", "unknown"),
+            "cross_filter": str(r.get("CrossFilteringBehavior", "single")).lower(),
+            "active": bool(r.get("IsActive", True)),
+        } for r in relationships],
+    }
+
+
 def _extract_datamodel_metadata(pbix_path: str) -> dict:
     """Extract table, column, measure metadata from DataModel."""
     datamodel_meta = {
@@ -177,7 +266,11 @@ def _extract_datamodel_metadata(pbix_path: str) -> dict:
         "total_columns": 0,
         "total_measures": 0,
         "estimated_data_size_mb": 0,
-        "notes": "DataModel structure extracted; detailed column/measure info requires PBIX decoding library",
+        "source": "none",
+        "notes": ("The compressed DataModel is not decoded by the standard library, "
+                  "so tables, columns and measures are empty. To read them offline: "
+                  "pip install pbixray (optional). Otherwise use the Power BI Desktop "
+                  "Data pane or a modeling tool."),
     }
 
     try:
@@ -188,6 +281,18 @@ def _extract_datamodel_metadata(pbix_path: str) -> dict:
             # Get DataModel file info
             info = z.getinfo("DataModel")
             datamodel_meta["estimated_data_size_mb"] = info.file_size / (1024 * 1024)
+
+            # Preferred: decode the real model with the optional pbixray package.
+            decoded = _read_model_with_pbixray(pbix_path)
+            if decoded:
+                datamodel_meta["tables"] = decoded["tables"]
+                datamodel_meta["relationships"] = decoded["relationships"]
+                datamodel_meta["total_tables"] = len(decoded["tables"])
+                datamodel_meta["total_columns"] = sum(len(t["columns"]) for t in decoded["tables"])
+                datamodel_meta["total_measures"] = sum(len(t["measures"]) for t in decoded["tables"])
+                datamodel_meta["source"] = "pbixray"
+                datamodel_meta["notes"] = "Model decoded offline with pbixray."
+                return datamodel_meta
 
             # Try to extract from Metadata.json if available (some PBIX versions)
             if "Metadata" in z.namelist():
@@ -341,7 +446,7 @@ def _extract_visual_field_references(pbix_path: str) -> dict:
                         name = select_item.get("Name", "")
                         if name:
                             references[page_name].append({
-                                "visual_id": vc.get("id"),
+                                "visual_id": vc.get("id") if vc.get("id") is not None else container_id(vc),
                                 "field_reference": name,
                                 "visual_type": sv.get("visualType"),
                             })

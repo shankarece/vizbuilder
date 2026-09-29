@@ -56,6 +56,21 @@ is expected until you save it in Desktop.
 If regular Desktop was used for steps 4–5, open the saved file in PBRS Desktop
 once to confirm it loads before uploading.
 
+## Optional: Scripted Publishing
+
+Uploading is normally done in the Report Server web portal or from PBRS Desktop
+(**File -> Save as -> Power BI Report Server**). To script it, Microsoft's
+[ReportingServicesTools](https://github.com/microsoft/ReportingServicesTools)
+PowerShell module (MIT) supports `.pbix` through the Report Server REST API
+(`Write-RsRestCatalogItem`), and the API is documented in Microsoft's
+"Power BI Report Server REST API" pages. Notes:
+
+- It uses your Windows sign-in, so it needs only the folder permission you
+  already have. Try it on a **test folder** first.
+- Very large files (roughly over 300 MB) have failed with that module.
+- vizbuilder does not ship a publisher: publishing to production should stay a
+  reviewed, human-approved step until your security team agrees otherwise.
+
 ## Version Rules
 
 - Preferred: prepare, open, and save only in Power BI Desktop for Report Server.

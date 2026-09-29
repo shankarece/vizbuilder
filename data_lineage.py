@@ -80,6 +80,28 @@ def _parse_visual_bindings(visual_info: dict) -> dict:
 
 # ── Lineage Analysis ────────────────────────────────────────────────────────
 
+def _parse_query_ref(query_ref: str):
+    """Split a visual's queryRef into (table, field), or None.
+
+    Handles every shape a saved report uses:
+        'Orders.Region'            column
+        'Sum(Orders.Revenue)'      column with an aggregation
+        'Orders.Total Revenue'     model measure
+        'Orders[Sales]'            DAX-style reference
+    """
+    ref = (query_ref or "").strip()
+    wrapped = re.match(r"^[A-Za-z]+\((.*)\)$", ref)
+    if wrapped:
+        ref = wrapped.group(1).strip()
+    if "[" in ref and ref.endswith("]"):
+        table, field = ref.split("[", 1)
+        return table.strip(), field[:-1].strip()
+    if "." in ref:
+        table, field = ref.split(".", 1)
+        return table.strip(), field.strip()
+    return None
+
+
 class DataLineageAnalyzer:
     def __init__(self, metadata: dict):
         self.metadata = metadata
@@ -122,40 +144,35 @@ class DataLineageAnalyzer:
         lineages = []
 
         for visual_key, visual_info in self.visuals.items():
-            page_name, visual_id = visual_key.split(":")
+            page_name, visual_id = visual_key.rsplit(":", 1)
 
             # Extract bindings from visual
             for page in self.metadata.get("report", {}).get("pages", []):
                 if page["name"] == page_name:
                     for visual in page.get("visuals", []):
-                        if visual["id"] == int(visual_id):
+                        if str(visual["id"]) == visual_id:
                             # Parse field references
                             for binding in visual.get("bindings", []):
                                 query_ref = binding.get("query_ref", "")
-                                if query_ref:
-                                    # Try to extract table.column
-                                    match = re.search(
-                                        r"([a-zA-Z_][a-zA-Z0-9_]*)\[([^\]]+)\]|([a-zA-Z_][a-zA-Z0-9_]*)",
-                                        query_ref
-                                    )
-                                    if match:
-                                        table = match.group(1) or match.group(3)
-                                        col = match.group(2)
-                                        if table:
-                                            field_key = f"{table}.{col}" if col else table
-                                            self.field_usage[field_key].append({
-                                                "visual": visual_key,
-                                                "role": binding.get("role"),
-                                            })
-                                            visual_info["fields"].append(field_key)
-
-                                            lineages.append({
-                                                "source_table": table,
-                                                "source_column": col,
-                                                "target_visual": visual_key,
-                                                "target_page": page_name,
-                                                "role": binding.get("role"),
-                                            })
+                                if not query_ref:
+                                    continue
+                                parsed = _parse_query_ref(query_ref)
+                                if parsed:
+                                    field_key = f"{parsed[0]}.{parsed[1]}"
+                                else:
+                                    field_key = query_ref.strip()
+                                self.field_usage[field_key].append({
+                                    "visual": visual_key,
+                                    "role": binding.get("role"),
+                                })
+                                visual_info["fields"].append(field_key)
+                                lineages.append({
+                                    "source_table": parsed[0] if parsed else field_key,
+                                    "source_column": parsed[1] if parsed else None,
+                                    "target_visual": visual_key,
+                                    "target_page": page_name,
+                                    "role": binding.get("role"),
+                                })
 
         return lineages
 
@@ -281,12 +298,19 @@ class DataLineageAnalyzer:
 
     def _generate_impact_summary(self) -> dict:
         """Generate impact analysis summary."""
+        def used(field_key):
+            return bool(self.field_usage.get(field_key))
+
+        tables_with_usage = sum(
+            1 for name, info in self.tables.items()
+            if any(used(f"{name}.{col}") for col in list(info["columns"]) + list(info["measures"])))
+        measures_with_usage = sum(
+            1 for name, info in self.tables.items()
+            for measure in info["measures"] if used(f"{name}.{measure}"))
         return {
-            "tables_with_usage": len([t for t in self.tables if t in
-                                     [l["source_table"] for l in self.field_usage]]),
+            "tables_with_usage": tables_with_usage,
             "tables_unused": len(self.orphaned["tables"]),
-            "measures_with_usage": len([m for m in self.field_usage
-                                       if self.field_usage[m]]),
+            "measures_with_usage": measures_with_usage,
             "measures_unused": len(self.orphaned["measures"]),
             "visuals_connected": len(self.visuals),
             "isolated_visuals": len([v for v in self.visuals if not self.visuals[v].get("fields")]),

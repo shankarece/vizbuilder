@@ -42,6 +42,9 @@ class CollectFilesTest(unittest.TestCase):
         for needed in ("build.py", "build.bat", "lint.py", "analyze.py",
                        "visuals_config.py", "install_skill.py", "desktop.py",
                        "README.md", "AGENTS.md", "CHANGELOG.md", "VERSION",
+                       "START_HERE.md", "doctor.py", "doctor.bat",
+                       "demo/superstore_dashboard.py", "demo/DEMO_SCRIPT.md",
+                       "demo/USER_GUIDE.md", "demo/VERIFY_IN_DESKTOP.md",
                        "skills/vizbuilder-modeling/SKILL.md",
                        "tests/test_skills.py"):
             with self.subTest(file=needed):
@@ -61,6 +64,7 @@ class CollectFilesTest(unittest.TestCase):
                 self.assertFalse(path.startswith(("dist/", ".git")))
                 self.assertNotIn(path, make_release.EXCLUDED_FILES)
         self.assertNotIn("REVIEW_SUMMARY.md", self.files)
+        self.assertFalse([p for p in self.files if p.endswith(".pbix")])
 
 
 class BuildReleaseTest(unittest.TestCase):
