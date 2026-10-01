@@ -171,8 +171,6 @@ never publish.
 - Layout is set by coordinates, so each build needs a visual check in Desktop.
 - Model-metadata reading in the analysis step may use an optional library. If
   `datamodel.tables` comes back empty, check the install.
-- `agent_orchestrator.py` is an early prototype and is not part of the
-  supported flow. Its pbi-cli commands are untested.
 - Report Server has fewer visuals and features than the cloud service.
 
 ## 8. Quick reference

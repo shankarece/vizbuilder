@@ -181,7 +181,7 @@ Interactive prompts for building Power BI Report Server dashboards with natural 
 
 ## **Layout & Canvas Management**
 
-The orchestrator automatically:
+The vizbuilder tools can:
 
 ✅ **Validates layout** - checks for overlaps, even spacing, grid alignment  
 ✅ **Adjusts canvas** - fits visuals to PBRS page size (8.5" x 11" standard)  
