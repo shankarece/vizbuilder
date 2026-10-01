@@ -104,7 +104,15 @@ Run as one command: `python analyze.py file.pbix --output analysis\`.
 It reads structure. It does not judge whether a DAX measure returns the right
 number.
 
-### 3.5 Support tools
+### 3.5 Formatting audit and restyle
+- `format_tools.py` / `format.bat`, documented in the `vizbuilder-analysis` skill.
+- **In:** any `.pbix`, optionally a theme JSON (font, colour palette, title
+  size). **Out:** an audit of mixed fonts, off-palette colours and inconsistent
+  number formats. With `--restyle` it writes a new `<name>-restyled.pbix` with
+  every visual mapped to the theme. The original is untouched. Number formats
+  are flagged, not changed. The audit also runs as the last step of `analyze.py`.
+
+### 3.6 Support tools
 - `doctor.py` / `doctor.bat`: checks Python, folder contents, and runs a
   self-test build.
 - `install_skill.py`: copies the skills into `~/.claude/skills/` so an agent
@@ -124,7 +132,7 @@ trigger words in its description so the agent picks the right one.
 | `vizbuilder-visuals` | How to add visuals: types, binding roles, `Table[Column]` syntax | "add a bar chart of sales by region" |
 | `vizbuilder-pages` | Multi-page reports, tab names, page titles, layout patterns | "add a second page" |
 | `vizbuilder-layout` | Run the linter and fix alignment, overlap, sizing | "fix the spacing" |
-| `vizbuilder-analysis` | Metadata, lineage, orphaned fields, consistency; also used to get real field names before binding | "which columns are unused" |
+| `vizbuilder-analysis` | Metadata, lineage, orphaned fields, consistency, formatting audit and restyle; also used to get real field names before binding | "which columns are unused" |
 | `vizbuilder-docs` | Generate data dictionary, measure catalog, HTML audit report | "document this report" |
 | `vizbuilder-deployment` | PBRS validation and the release checklist | "is this ready for Report Server" |
 | `vizbuilder-diagnostics` | First stop when something fails: build errors, blank visuals, Desktop won't open | "build failed", "visual is blank" |
