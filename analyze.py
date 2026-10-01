@@ -24,6 +24,7 @@ from consistency_checker import check_consistency
 from metadata_extractor import extract_metadata
 from generate_docs import generate_report
 from pbrs_validator import validate_pbrs_compatibility
+from format_tools import run as format_audit
 
 
 def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
@@ -105,6 +106,10 @@ def analyze(pbix_path: str, output_dir: str = None, metadata_only: bool = False,
     pbrs_result = validate_pbrs_compatibility(pbix_path, metadata_file, pbrs_validation_file)
     results["pbrs_validation"] = pbrs_result
     print(f"[OK] PBRS validation complete: {pbrs_validation_file}")
+
+    # Formatting audit (fonts, colours, number formats)
+    print("\nFormatting audit...")
+    results["formatting"] = format_audit(pbix_path, report_path=os.path.join(output_dir, f"{pbix_name}_formatting.json"))
 
     return results
 

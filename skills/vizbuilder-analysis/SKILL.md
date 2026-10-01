@@ -133,6 +133,21 @@ python analyze.py input.pbix --metadata-only --output analysis\
 Then bind visuals only to names that appear in
 `analysis\input_metadata.json`.
 
+## Formatting Audit and Bulk Restyle
+
+Find mixed fonts, off-palette colours and inconsistent number formats, and
+restyle every visual to a theme. The original file is never modified.
+
+```cmd
+format.bat file.pbix --theme bank_theme.json            REM audit
+format.bat file.pbix --theme bank_theme.json --restyle  REM writes file-restyled.pbix
+```
+
+Theme JSON: `{"fontFamily": "Segoe UI", "palette": ["#E60012", "#333333"]}`.
+Restyle maps each hard-coded colour to the nearest palette colour and unifies
+fonts (Bold/Light weights are kept). Number formats are flagged, not changed.
+The audit also runs as the last step of `analyze.py`.
+
 ## Related Skills
 
 - **vizbuilder-docs** — turn the analysis into shareable documentation
