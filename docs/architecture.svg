@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 640" width="1100" height="640" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="640" fill="#ffffff"/>
+  <text x="40" y="22" font-size="18" font-weight="700" fill="#222">vizbuilder architecture: what goes in, what comes out</text>
+
+  <!-- prompt + agent -->
+  <rect x="40" y="38" width="300" height="56" rx="8" fill="#f1f1f1" stroke="#888"/>
+  <text x="190" y="62" font-size="14" font-weight="700" text-anchor="middle" fill="#222">User prompt</text>
+  <text x="190" y="81" font-size="12" text-anchor="middle" fill="#444">plain English: "build a sales dashboard"</text>
+  <rect x="420" y="38" width="640" height="56" rx="8" fill="#fff4d6" stroke="#c9a227"/>
+  <text x="740" y="62" font-size="14" font-weight="700" text-anchor="middle" fill="#222">AI agent (Devin)</text>
+  <text x="740" y="81" font-size="12" text-anchor="middle" fill="#444">follows AGENTS.md and the 9 skills; runs the tools below</text>
+  <line x1="340" y1="66" x2="418" y2="66" stroke="#555" stroke-width="1.8" marker-end="url(#a)"/>
+
+  <!-- agent to stages -->
+  <path d="M 450 94 L 450 112 L 190 112 L 190 134" fill="none" stroke="#555" stroke-width="1.8" marker-end="url(#a)"/>
+  <line x1="740" y1="94" x2="740" y2="134" stroke="#555" stroke-width="1.8" marker-end="url(#a)"/>
+
+  <!-- stage 1 -->
+  <rect x="40" y="136" width="300" height="214" rx="10" fill="#e8f0fe" stroke="#3a6fd8" stroke-width="1.5"/>
+  <text x="56" y="160" font-size="14" font-weight="700" fill="#1a3f94">1  MODEL PHASE (live)</text>
+  <text x="56" y="182" font-size="12" font-weight="700" fill="#222">Power BI Modeling MCP</text>
+  <text x="56" y="202" font-size="12" fill="#333">talks to Power BI Desktop with</text>
+  <text x="56" y="218" font-size="12" fill="#333">the .pbix open</text>
+  <text x="56" y="242" font-size="12" fill="#333">IN: instructions ("add measure")</text>
+  <text x="56" y="262" font-size="12" fill="#333">DOES: tables, relationships,</text>
+  <text x="56" y="278" font-size="12" fill="#333">DAX measures, row-level security</text>
+  <text x="56" y="302" font-size="12" fill="#333">OUT: changes in the open session</text>
+  <text x="56" y="326" font-size="12" font-weight="700" fill="#b3261e">Then File -&gt; Save (or nothing is kept)</text>
+
+  <!-- arrow stage1 -> offline -->
+  <line x1="340" y1="236" x2="418" y2="236" stroke="#555" stroke-width="1.8" marker-end="url(#a)"/>
+  <text x="379" y="226" font-size="11" text-anchor="middle" fill="#444">saved</text>
+  <text x="379" y="252" font-size="11" text-anchor="middle" fill="#444">.pbix</text>
+
+  <!-- offline group -->
+  <rect x="420" y="136" width="640" height="214" rx="10" fill="#eef7ee" stroke="#3b8a3b" stroke-width="1.5"/>
+  <text x="436" y="158" font-size="14" font-weight="700" fill="#1f5f1f">OFFLINE: vizbuilder (Python standard library, no internet, no Desktop)</text>
+
+  <rect x="432" y="172" width="200" height="166" rx="8" fill="#ffffff" stroke="#3b8a3b"/>
+  <text x="444" y="194" font-size="13" font-weight="700" fill="#222">2  DISCOVER</text>
+  <text x="444" y="216" font-size="12" fill="#333">analyze.py --metadata-only</text>
+  <text x="444" y="240" font-size="12" fill="#333">IN: the saved .pbix</text>
+  <text x="444" y="264" font-size="12" fill="#333">OUT: real table, column</text>
+  <text x="444" y="280" font-size="12" fill="#333">and measure names (JSON)</text>
+  <text x="444" y="310" font-size="11" fill="#666">so bindings use exact names</text>
+
+  <rect x="642" y="172" width="200" height="166" rx="8" fill="#ffffff" stroke="#3b8a3b"/>
+  <text x="654" y="194" font-size="13" font-weight="700" fill="#222">3  BUILD</text>
+  <text x="654" y="216" font-size="12" fill="#333">build.py, layout_builder,</text>
+  <text x="654" y="232" font-size="12" fill="#333">pbix_patch</text>
+  <text x="654" y="256" font-size="12" fill="#333">IN: .pbix + dashboard .py</text>
+  <text x="654" y="280" font-size="12" fill="#333">OUT: output.pbix, model</text>
+  <text x="654" y="296" font-size="12" fill="#333">unchanged + new visuals</text>
+  <text x="654" y="320" font-size="11" fill="#666">input file never overwritten</text>
+
+  <rect x="852" y="172" width="200" height="166" rx="8" fill="#ffffff" stroke="#3b8a3b"/>
+  <text x="864" y="194" font-size="13" font-weight="700" fill="#222">4  VERIFY</text>
+  <text x="864" y="216" font-size="12" fill="#333">lint.py, analyze.py,</text>
+  <text x="864" y="232" font-size="12" fill="#333">format_tools.py</text>
+  <text x="864" y="256" font-size="12" fill="#333">IN: the built .pbix</text>
+  <text x="864" y="280" font-size="12" fill="#333">OUT: layout, lineage, PBRS</text>
+  <text x="864" y="296" font-size="12" fill="#333">checks, data dictionary,</text>
+  <text x="864" y="312" font-size="12" fill="#333">HTML audit report</text>
+  <line x1="632" y1="255" x2="641" y2="255" stroke="#555" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="842" y1="255" x2="851" y2="255" stroke="#555" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- to human -->
+  <line x1="190" y1="350" x2="190" y2="384" stroke="#555" stroke-width="1.8" marker-end="url(#a)"/>
+  <line x1="740" y1="350" x2="740" y2="384" stroke="#555" stroke-width="1.8" marker-end="url(#a)"/>
+  <rect x="40" y="386" width="1020" height="64" rx="10" fill="#fdecea" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="56" y="410" font-size="14" font-weight="700" fill="#8e1f14">5  HUMAN CHECK (the AI never publishes)</text>
+  <text x="56" y="432" font-size="12" fill="#333">Open output.pbix in Power BI Desktop for Report Server  -&gt;  check the numbers  -&gt;  File -&gt; Save (rebuilds SecurityBindings)  -&gt;  publish to Report Server</text>
+
+  <!-- skills -->
+  <text x="40" y="478" font-size="14" font-weight="700" fill="#222">Skills: instruction files the agent reads (skills/vizbuilder-NAME/SKILL.md)</text>
+  <g font-size="12" text-anchor="middle">
+    <rect x="40"  y="490" width="108" height="76" rx="6" fill="#f6f0ff" stroke="#7a52c7"/><text x="94"  y="512" font-weight="700" fill="#222">modeling</text><text x="94"  y="532" fill="#444" font-size="11">model first,</text><text x="94"  y="547" fill="#444" font-size="11">MCP handoff</text>
+    <rect x="154" y="490" width="108" height="76" rx="6" fill="#f6f0ff" stroke="#7a52c7"/><text x="208" y="512" font-weight="700" fill="#222">report</text><text x="208" y="532" fill="#444" font-size="11">end-to-end</text><text x="208" y="547" fill="#444" font-size="11">workflow</text>
+    <rect x="268" y="490" width="108" height="76" rx="6" fill="#f6f0ff" stroke="#7a52c7"/><text x="322" y="512" font-weight="700" fill="#222">visuals</text><text x="322" y="532" fill="#444" font-size="11">chart types,</text><text x="322" y="547" fill="#444" font-size="11">field bindings</text>
+    <rect x="382" y="490" width="108" height="76" rx="6" fill="#f6f0ff" stroke="#7a52c7"/><text x="436" y="512" font-weight="700" fill="#222">pages</text><text x="436" y="532" fill="#444" font-size="11">tabs, titles,</text><text x="436" y="547" fill="#444" font-size="11">page layouts</text>
+    <rect x="496" y="490" width="108" height="76" rx="6" fill="#f6f0ff" stroke="#7a52c7"/><text x="550" y="512" font-weight="700" fill="#222">layout</text><text x="550" y="532" fill="#444" font-size="11">lint, fix</text><text x="550" y="547" fill="#444" font-size="11">spacing/overlap</text>
+    <rect x="610" y="490" width="108" height="76" rx="6" fill="#f6f0ff" stroke="#7a52c7"/><text x="664" y="512" font-weight="700" fill="#222">analysis</text><text x="664" y="532" fill="#444" font-size="11">metadata, lineage,</text><text x="664" y="547" fill="#444" font-size="11">formatting audit</text>
+    <rect x="724" y="490" width="108" height="76" rx="6" fill="#f6f0ff" stroke="#7a52c7"/><text x="778" y="512" font-weight="700" fill="#222">docs</text><text x="778" y="532" fill="#444" font-size="11">data dictionary,</text><text x="778" y="547" fill="#444" font-size="11">audit report</text>
+    <rect x="838" y="490" width="108" height="76" rx="6" fill="#f6f0ff" stroke="#7a52c7"/><text x="892" y="512" font-weight="700" fill="#222">deployment</text><text x="892" y="532" fill="#444" font-size="11">PBRS checks,</text><text x="892" y="547" fill="#444" font-size="11">release list</text>
+    <rect x="952" y="490" width="108" height="76" rx="6" fill="#f6f0ff" stroke="#7a52c7"/><text x="1006" y="512" font-weight="700" fill="#222">diagnostics</text><text x="1006" y="532" fill="#444" font-size="11">errors,</text><text x="1006" y="547" fill="#444" font-size="11">troubleshooting</text>
+  </g>
+  <text x="40" y="592" font-size="12" fill="#444">Rule: model first, save, then build. build.py copies the model from the file on disk, so an unsaved model is missing from the output.</text>
+  <text x="40" y="612" font-size="12" fill="#444">Confirmed visuals on Report Server Desktop: card, slicer, column/bar/line (no legend), donut, table, matrix.</text>
+</svg>

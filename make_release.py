@@ -29,7 +29,7 @@ REPO_DIR = os.path.dirname(os.path.abspath(__file__))
 EXCLUDED_FILES = {"REVIEW_SUMMARY.md", "DEVIN_TASK.md"}
 INCLUDED_SUFFIXES = (".py", ".bat", ".md", ".txt")
 INCLUDED_FILES = {"VERSION"}
-INCLUDED_DIRS = ("skills", "tests", "demo")
+INCLUDED_DIRS = ("skills", "tests", "demo", "docs")
 SKIPPED_PARTS = {"__pycache__", ".git", "dist"}
 SKIPPED_SUFFIXES = (".pyc", ".pyo", ".pbix", ".pbit", ".layout")
 # The only .pbix files that ship: made-up Northwind data for the Desktop check.

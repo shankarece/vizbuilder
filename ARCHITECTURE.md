@@ -18,6 +18,11 @@ them from plain-English prompts, and a person does the final check.
 
 ## 2. End-to-end flow
 
+![vizbuilder architecture diagram](docs/architecture.svg)
+
+If the picture does not show, open `docs/architecture.png` or `docs/architecture.svg`
+from the downloaded folder in any browser. The same flow in text:
+
 ```
  PROMPT (plain English)
     |
