@@ -18,6 +18,9 @@ them from plain-English prompts, and a person does the final check.
 
 ## 2. End-to-end flow
 
+For a step-by-step walkthrough with a worked example, see
+[docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md).
+
 ![vizbuilder architecture diagram](docs/architecture.svg)
 
 If the picture does not show, open `docs/architecture.png` or `docs/architecture.svg`
